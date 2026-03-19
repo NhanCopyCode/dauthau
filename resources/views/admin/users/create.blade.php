@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('message.user.users') }}
 @endsection
@@ -13,7 +13,8 @@
         <div class="box-header with-border">
             <h3 class="box-title">{{ __('message.new_add') }}</h3>
             <div class="box-tools">
-                <a href="{{ url('/admin/users') }}" class="btn btn-default"><i class="fa fa-arrow-left" aria-hidden="true"></i> <span class="hidden-xs"> {{ __('message.lists') }}</span></a>
+                <a href="{{ url('/admin/users') }}" class="btn btn-default"><i class="fa fa-arrow-left" aria-hidden="true"></i>
+                    <span class="hidden-xs"> {{ __('message.lists') }}</span></a>
             </div>
         </div>
 

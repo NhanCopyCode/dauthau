@@ -92,7 +92,7 @@ class ForgotPasswordController extends Controller
     public function showLinkRequestForm()
     {
         $settings = Setting::allConfigsKeyValue();
-        return view('adminlte::auth.passwords.email', compact('settings'));
+        return view('admin.auth.passwords.email', compact('settings'));
     }
 
     /**

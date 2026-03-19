@@ -58,7 +58,7 @@ trait Authorizable
      */
     private function getMethodPermission($controller, $method){
         if(key_exists($method, $this->getSameMethod())){
-            $methodPermission = array_get($this->getSameMethod(), $method);
+            $methodPermission = Arr::get($this->getSameMethod(), $method);
             //method thay thế tồn tại
             if(method_exists($controller, $methodPermission)) return $methodPermission;
         }

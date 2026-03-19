@@ -1,7 +1,7 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 
 @section('htmlheader_title')
-    {{ trans('adminlte_lang::message.home') }}
+    {{ __('adminlang.home') }}
 @endsection
 @section('css')
     <style>
@@ -44,19 +44,19 @@
                 </div>
             </div> --}}
             <div class="col-md-3">
-               	<a  href="{{ url('/admin/users') }}" >
-                  <div class="info-box">
-                    <span class="info-box-icon bg-warning "><i class="fa fa-users"></i></span>
+                <a href="{{ url('/admin/users') }}">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-warning "><i class="fa fa-users"></i></span>
 
-                    <div class="info-box-content">
-                        <span class="info-box-text">Member total</span>
-                        <span class="info-box-number">
-                            {{ $usr }}
-                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Member total</span>
+                            <span class="info-box-number">
+                                {{ $usr }}
+                            </span>
+                        </div>
+                        <!-- /.info-box-content -->
                     </div>
-                    <!-- /.info-box-content -->
-                </div>
-                 </a>
+                </a>
             </div>
             {{-- <div class="col-md-3">
                 <div class="info-box">
@@ -76,10 +76,10 @@
     </div>
     <br>
     {{-- <figure class="highcharts-figure">
-    <div id="container"></div>
-    <p class="highcharts-description">
-    </p>
-</figure> --}}
+        <div id="container"></div>
+        <p class="highcharts-description">
+        </p>
+    </figure> --}}
     {{-- <div class="row">
         <!-- Left col -->
         <div class="col-md-8">
@@ -315,4 +315,3 @@
         <!-- /.col -->
     </div> --}}
 @endsection
-

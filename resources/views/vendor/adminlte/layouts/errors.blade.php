@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 
-@include('adminlte::layouts.partials.htmlheader')
+@include('admin.layouts.partials.htmlheader')
+
 <body>
     <div id="app" v-cloak>
         <!-- Main content -->
@@ -11,7 +12,8 @@
         </section>
     </div>
     @section('scripts')
-        @include('adminlte::layouts.partials.scripts')
+        @include('admin.layouts.partials.scripts')
     @show
 </body>
+
 </html>

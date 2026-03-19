@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('categories.category') }}
 @endsection
@@ -19,11 +19,12 @@
         <div class="box-header">
             <h3 class="box-title">{{ __('message.detail') }}</h3>
             <div class="box-tools">
-                <a href="{{ url('/admin/categories') }}" class="btn btn-warning btn-sm"><i class="fa fa-arrow-left" aria-hidden="true"></i> <span
-                        class="hidden-xs">{{ trans('message.lists') }}</span></a>
+                <a href="{{ url('/admin/categories') }}" class="btn btn-warning btn-sm"><i class="fa fa-arrow-left"
+                        aria-hidden="true"></i> <span class="hidden-xs">{{ trans('message.lists') }}</span></a>
                 @can('CategoryController@update')
-                    <a href="{{ url('/admin/categories/' . $category->id . '/edit') }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil-square-o"
-                            aria-hidden="true"></i> <span class="hidden-xs">{{ __('message.edit') }}</span></a>
+                    <a href="{{ url('/admin/categories/' . $category->id . '/edit') }}" class="btn btn-primary btn-sm"><i
+                            class="fa fa-pencil-square-o" aria-hidden="true"></i> <span
+                            class="hidden-xs">{{ __('message.edit') }}</span></a>
                 @endcan
                 @can('CategoryController@destroy')
                     {!! Form::open([
@@ -31,12 +32,15 @@
                         'url' => ['admin/categories', $category->id],
                         'style' => 'display:inline',
                     ]) !!}
-                    {!! Form::button('<i class="fa fa-trash-o" aria-hidden="true"></i> <span class="hidden-xs">' . __('message.delete') . '</span>', [
-                        'type' => 'submit',
-                        'class' => 'btn btn-danger btn-sm',
-                        'title' => __('message.delete'),
-                        'onclick' => 'return confirm("' . __('message.confirm_delete') . '")',
-                    ]) !!}
+                    {!! Form::button(
+                        '<i class="fa fa-trash-o" aria-hidden="true"></i> <span class="hidden-xs">' . __('message.delete') . '</span>',
+                        [
+                            'type' => 'submit',
+                            'class' => 'btn btn-danger btn-sm',
+                            'title' => __('message.delete'),
+                            'onclick' => 'return confirm("' . __('message.confirm_delete') . '")',
+                        ],
+                    ) !!}
                     {!! Form::close() !!}
                 @endcan
             </div>
@@ -67,7 +71,8 @@
                     </tr>
                     <tr>
                         <th> {{ trans('theme::categories.updated_at') }} </th>
-                        <td> {{ Carbon\Carbon::parse($category->updated_at)->format(config('settings.format.datetime')) }} </td>
+                        <td> {{ Carbon\Carbon::parse($category->updated_at)->format(config('settings.format.datetime')) }}
+                        </td>
                     </tr>
                 </tbody>
             </table>

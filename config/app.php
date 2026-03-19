@@ -177,11 +177,9 @@ return [
         /*
          * Package Service Providers...
          */
-        RealRashid\SweetAlert\SweetAlertServiceProvider::class,
 	    /*
 		 * Acacha AdminLTE template provider
 		 */
-	    Acacha\AdminLTETemplateLaravel\Providers\AdminLTETemplateServiceProvider::class,
 	    Spatie\Menu\Laravel\MenuServiceProvider::class,
 	    Intervention\Image\ImageServiceProvider::class,
         /*
@@ -192,7 +190,6 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         
-        Acacha\AdminLTETemplateLaravel\Providers\AdminLTETemplateServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 	    /*
 	     * Third Party Service Providers...
@@ -251,13 +248,11 @@ return [
         'URL' => Illuminate\Support\Facades\URL::class,
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View' => Illuminate\Support\Facades\View::class,
-        'Alert' => RealRashid\SweetAlert\Facades\Alert::class,   
         'UriLocalizer'	=> Waavi\Translation\Facades\UriLocalizer::class,
 
 	    /*
 		 * Acacha AdminLTE template alias
 		 */
-        'AdminLTE' => Acacha\AdminLTETemplateLaravel\Facades\AdminLTE::class,
         'Menu' => Spatie\Menu\Laravel\MenuFacade::class,
         'Image' => Intervention\Image\Facades\Image::class,
         'Str' => Illuminate\Support\Str::class,

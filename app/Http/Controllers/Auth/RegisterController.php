@@ -39,7 +39,7 @@ class RegisterController extends Controller
     public function showRegistrationForm()
     {
         $settings = Setting::allConfigsKeyValue();
-        return view('adminlte::auth.register', compact('settings'));
+        return view('admin.auth.register', compact('settings'));
     }
 
     /**

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'users' => "Người dùng",
     "code_country" => ' Mã địa bàn',
     "home" => " Trang chủ",
     "embed_form_register" => 'Mã nhúng - Form Đăng ký',

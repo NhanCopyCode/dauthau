@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('message.user.profile') }}
 @endsection
@@ -18,10 +18,13 @@
             'method' => 'POST',
             'url' => ['/admin/profile'],
             'files' => true,
-            'class' => 'form-horizontal'
+            'class' => 'form-horizontal',
         ]) !!}
 
-        @include ('admin.users.form-profile', ['submitButtonText' => __('message.update'), 'isProfile'=> true])
+        @include ('admin.users.form-profile', [
+            'submitButtonText' => __('message.update'),
+            'isProfile' => true,
+        ])
 
         {!! Form::close() !!}
     </div>

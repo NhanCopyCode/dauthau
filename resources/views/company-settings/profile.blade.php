@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('companies.profile') }}
 @endsection
@@ -6,11 +6,10 @@
     {{ __('companies.profile') }}
 @endsection
 @section('contentheader_description')
-
 @endsection
 @section('breadcrumb')
     <ol class="breadcrumb">
-        <li><a href="/home"><i class="fa fa-home"></i> {{ __("message.dashboard") }}</a></li>
+        <li><a href="/home"><i class="fa fa-home"></i> {{ __('message.dashboard') }}</a></li>
         <li class="active">{{ __('companies.profile') }}</li>
     </ol>
 @endsection
@@ -25,7 +24,7 @@
             'method' => 'POST',
             'url' => ['/companies-profile'],
             'files' => true,
-            'class' => 'form-horizontal'
+            'class' => 'form-horizontal',
         ]) !!}
 
         @include ('company-settings.form', ['submitButtonText' => __('message.update'), 'profile' => true])

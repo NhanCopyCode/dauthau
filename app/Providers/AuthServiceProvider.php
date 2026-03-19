@@ -29,7 +29,6 @@ class AuthServiceProvider extends ServiceProvider
     {
         parent::registerPolicies($gate);
 
-        Passport::routes();
 
         try {
             if (\Schema::hasTable('permissions')) {

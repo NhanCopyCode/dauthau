@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('categories.category') }}
 @endsection
@@ -20,7 +20,8 @@
                 {{ __('message.lists') }}
             </h5>
             @can('CategoryController@store')
-                <a href="{{ url('/admin/categories/create') }}" class="btn btn-default float-right" title="{{ __('message.new_add') }}">
+                <a href="{{ url('/admin/categories/create') }}" class="btn btn-default float-right"
+                    title="{{ __('message.new_add') }}">
                     <i class="fa fa-plus-circle" aria-hidden="true"></i> <span class="hidden-xs">
                         {{ __('message.new_add') }}</span>
                 </a>
@@ -59,28 +60,36 @@
                     @foreach ($categories as $item)
                         <tr>
                             <td class="text-center">
-                                <input type="checkbox" name="chkId" id="chkId" value="{{ $item->id }}" data-id="{{ $item->id }}" />
+                                <input type="checkbox" name="chkId" id="chkId" value="{{ $item->id }}"
+                                    data-id="{{ $item->id }}" />
                             </td>
                             <td class="text-center">{{ ++$index }}</td>
                             @can('CategoryController@show')
-                                <td><a href="{{ url('/admin/categories') . '/' . $item->id }}" style="color: black;">{{ $item->name }}</a></td>
+                                <td><a href="{{ url('/admin/categories') . '/' . $item->id }}"
+                                        style="color: black;">{{ $item->name }}</a></td>
                             @endcan
                             <td class="text-center">{{ $item->slug }}</td>
                             <td class="text-center">{!! $item->description !!}</td>
                             <td class="text-center">{!! $item->active == config('settings.active') ? '<i class="fa fa-check text-primary"></i>' : '' !!}</td>
-                            <td class="text-center">{{ Carbon\Carbon::parse($item->updated_at)->format(config('settings.format.date')) }}</td>
+                            <td class="text-center">
+                                {{ Carbon\Carbon::parse($item->updated_at)->format(config('settings.format.date')) }}</td>
                             <td class="dropdown">
-                                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false">
                                     <i class="fal fa-tools"></i>
                                 </button>
                                 <div class="dropdown-menu p-0">
                                     @can('CategoryController@show')
-                                        <a href="{{ url('/admin/categories/' . $item->id) }}" title="{{ __('message.user.view_user') }}"><button
-                                                class="btn btn-info btn-sm dropdown-item"><i class="fas fa-eye"></i> {{ __('message.view') }}</button></a>
+                                        <a href="{{ url('/admin/categories/' . $item->id) }}"
+                                            title="{{ __('message.user.view_user') }}"><button
+                                                class="btn btn-info btn-sm dropdown-item"><i class="fas fa-eye"></i>
+                                                {{ __('message.view') }}</button></a>
                                     @endcan
                                     @can('CategoryController@update')
-                                        <a href="{{ url('/admin/categories/' . $item->id . '/edit') }}" title="{{ __('message.user.edit_user') }}"><button
-                                                class="btn btn-primary btn-sm dropdown-item"><i class="far fa-edit" aria-hidden="true"></i>
+                                        <a href="{{ url('/admin/categories/' . $item->id . '/edit') }}"
+                                            title="{{ __('message.user.edit_user') }}"><button
+                                                class="btn btn-primary btn-sm dropdown-item"><i class="far fa-edit"
+                                                    aria-hidden="true"></i>
                                                 {{ __('message.edit') }}</button></a>
                                     @endcan
                                     @can('CategoryController@destroy')

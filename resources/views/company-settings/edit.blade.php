@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('companies.settings') }}
 @endsection
@@ -6,11 +6,10 @@
     {{ __('companies.settings') }}
 @endsection
 @section('contentheader_description')
-    
 @endsection
 @section('breadcrumb')
     <ol class="breadcrumb">
-        <li><a href="{{ url("admin") }}"><i class="fa fa-home"></i> {{ __("message.dashboard") }}</a></li>
+        <li><a href="{{ url('admin') }}"><i class="fa fa-home"></i> {{ __('message.dashboard') }}</a></li>
         <li class="active">{{ __('companies.settings') }}</li>
     </ol>
 @endsection
@@ -25,7 +24,7 @@
             'method' => 'PATCH',
             'url' => ['/company-settings'],
             'class' => 'form-horizontal',
-            'files' => true
+            'files' => true,
         ]) !!}
 
         <div class="box-body">
@@ -36,18 +35,20 @@
                     @endforeach
                 </div>
             @endif
-            @foreach(\App\Models\CompanySetting::$key as $key => $default)
-            <div class="form-group {{ $errors->has($key) ? 'has-error' : ''}}">
-                {!! Form::label('key', trans('companies.settings_'.$key), ['class' => 'col-md-3 control-label']) !!}
-                <div class="col-md-6">
-                    @if(!empty(\App\Models\CompanySetting::$key_type[$key]))
-                        {!! Form::checkbox($key, $default, isset($setting[$key])?$setting[$key]:$default, ['class'=>'flat-blue form-control']) !!}
-                    @else
-                        {!! Form::text($key, isset($setting[$key])?$setting[$key]:$default, ['class' => 'form-control input-sm']) !!}
-                    @endif
-                    {!! $errors->first($key, '<p class="help-block">:message</p>') !!}
+            @foreach (\App\Models\CompanySetting::$key as $key => $default)
+                <div class="form-group {{ $errors->has($key) ? 'has-error' : '' }}">
+                    {!! Form::label('key', trans('companies.settings_' . $key), ['class' => 'col-md-3 control-label']) !!}
+                    <div class="col-md-6">
+                        @if (!empty(\App\Models\CompanySetting::$key_type[$key]))
+                            {!! Form::checkbox($key, $default, isset($setting[$key]) ? $setting[$key] : $default, [
+                                'class' => 'flat-blue form-control',
+                            ]) !!}
+                        @else
+                            {!! Form::text($key, isset($setting[$key]) ? $setting[$key] : $default, ['class' => 'form-control input-sm']) !!}
+                        @endif
+                        {!! $errors->first($key, '<p class="help-block">:message</p>') !!}
+                    </div>
                 </div>
-            </div>
             @endforeach
         </div>
         <div class="box-footer">

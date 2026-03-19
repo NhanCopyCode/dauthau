@@ -52,7 +52,7 @@ class ResetPasswordController extends Controller
             : $this->sendResetFailedResponse($request, $response);
     }
 
-        /**
+    /**
      * Set the user's password.
      *
      * @param  \Illuminate\Contracts\Auth\CanResetPassword  $user
@@ -92,7 +92,7 @@ class ResetPasswordController extends Controller
     protected function sendResetFailedResponse(Request $request, $response)
     {
         if ($request->expectsJson()) {
-            return new JsonResponse(['email' => trans($response) ], 422);
+            return new JsonResponse(['email' => trans($response)], 422);
         }
         return redirect()->back()
             ->withInput($request->only('email'))
@@ -111,7 +111,7 @@ class ResetPasswordController extends Controller
     public function showResetForm(Request $request, $token = null)
     {
         $settings = Setting::allConfigsKeyValue();
-        return view('adminlte::auth.passwords.reset', compact('settings'))->with(
+        return view('admin.auth.passwords.reset', compact('settings'))->with(
             ['token' => $token, 'email' => $request->email]
         );
     }

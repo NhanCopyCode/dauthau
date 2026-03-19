@@ -1,4 +1,4 @@
-@extends('adminlte::layouts.app')
+@extends('admin.layouts.admin')
 @section('htmlheader_title')
     {{ __('news.news') }}
 @endsection
@@ -19,10 +19,11 @@
         <div class="box-header">
             <h5 class="float-left">{{ __('message.detail') }}</h5>
             <div class="box-tools">
-                <a href="{{ url('/admin/news') }}" title="{{ __('message.lists') }}" class="btn btn-default btn-sm mr-1"><i class="fa fa-arrow-left"></i> <span
-                        class="hidden-xs"> {{ __('message.lists') }}</span></a>
+                <a href="{{ url('/admin/news') }}" title="{{ __('message.lists') }}" class="btn btn-default btn-sm mr-1"><i
+                        class="fa fa-arrow-left"></i> <span class="hidden-xs"> {{ __('message.lists') }}</span></a>
                 @can('NewsController@update')
-                    <a href="{{ url('/admin/news/' . $news->id . '/edit') }}" class="btn btn-default btn-sm mr-1"><i class="far fa-edit"></i> <span class="hidden-xs">
+                    <a href="{{ url('/admin/news/' . $news->id . '/edit') }}" class="btn btn-default btn-sm mr-1"><i
+                            class="far fa-edit"></i> <span class="hidden-xs">
                             {{ __('message.edit') }}</span></a>
                 @endcan
                 @can('NewsController@destroy')
@@ -31,12 +32,15 @@
                         'url' => ['/admin/news', $news->id],
                         'style' => 'display:inline',
                     ]) !!}
-                    {!! Form::button('<i class="far fa-trash-alt"></i> <span class="hidden-xs"> ' . __('message.delete') . '</span>', [
-                        'type' => 'submit',
-                        'class' => 'btn btn-default btn-sm',
-                        'title' => 'Xoá',
-                        'onclick' => 'return confirm("' . __('message.confirm_delete') . '?")',
-                    ]) !!}
+                    {!! Form::button(
+                        '<i class="far fa-trash-alt"></i> <span class="hidden-xs"> ' . __('message.delete') . '</span>',
+                        [
+                            'type' => 'submit',
+                            'class' => 'btn btn-default btn-sm',
+                            'title' => 'Xoá',
+                            'onclick' => 'return confirm("' . __('message.confirm_delete') . '?")',
+                        ],
+                    ) !!}
                     {!! Form::close() !!}
                 @endcan
             </div>
@@ -75,7 +79,8 @@
                     </tr>
                     <tr>
                         <th> {{ trans('theme::news.updated_at') }} </th>
-                        <td> {{ Carbon\Carbon::parse($news->updated_at)->format(config('settings.format.datetime')) }} </td>
+                        <td> {{ Carbon\Carbon::parse($news->updated_at)->format(config('settings.format.datetime')) }}
+                        </td>
                     </tr>
                 </tbody>
             </table>

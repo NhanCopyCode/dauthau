@@ -29,7 +29,6 @@ class RolesController extends Controller
         } else {
             $roles = Role::paginate($perPage);
         }
-
         return view('admin.roles.index', compact('roles'));
     }
 

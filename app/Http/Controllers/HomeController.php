@@ -6,6 +6,7 @@
  */
 
 namespace App\Http\Controllers;
+
 use App\Models\User;
 
 
@@ -33,7 +34,6 @@ class HomeController extends Controller
     public function index()
     {
         $usr = User::all()->count();
-
-        return view('adminlte::home',compact('usr'));
+        return view('admin.home', compact('usr'));
     }
 }
