@@ -1,77 +1,150 @@
-<p align="center"><img src="https://laravel.com/assets/img/components/logo-laravel.svg"></p>
+# Huesfot
 
-## #FastBooking
+## ⚙️ Yêu cầu hệ thống
 
-## Hướng dẫn cài đặt
-1. clone dự án về máy
-2. Copy file mới tên là .env dựa trên file .env.example và thay đổi các tham số phù hợp
-3. Chạy lệnh update các package - <b>composer install</b>
-4. Chạy lệnh: <b>php artisan key:generate</b>  - để tạo application key
-5. Chạy lênh: <b>php artisan migrate</b> - để khởi tạo database ban đầu
-6. Chạy lệnh: <b>php artisan storage:link</b> - để tạo <b>symbolic link</b> đến từ folder <i>storage/app/public</i> đến folder <i>public/storage</i>
-7. Chạy lệnh: <b>php artisan db:seed</b> với --class = AdminUserSeeder, RolesTableSeeder và DataDemoSeeder - để khởi tạo tải khoản và dữ liệu demo
+- PHP >= 8.0 (khuyến nghị 8.2)
+- Composer
+- MySQL / MariaDB
+- Node.js (nếu build frontend)
 
-## Về dự án:
-- Sử dụng bản Laravel 5.5
-- Giao diện Tiếng Việt
-- Tích hợp theme AdminLTE cho giao diện https://adminlte.io/themes/AdminLTE/index2.html
-- Sử dụng bootstrap 3
-- Sử dụng module kyslik/column-sortable cho phần sort ở table
-- Sử dụng module intervention/image để resize ảnh
+---
 
+## 🛠️ Cài đặt dự án
 
+### 1. Clone project
 
+```bash
+git clone https://github.com/NhanCopyCode/dauthau.git
+cd project-folder
+```
 
+---
 
+### 2. Cài đặt dependencies
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/d/total.svg" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/v/stable.svg" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/license.svg" alt="License"></a>
-</p>
+```bash
+composer install
+```
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as:
+### 3. Tạo file môi trường
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```bash
+cp .env.example .env
+```
 
-Laravel is accessible, yet powerful, providing tools needed for large, robust applications. A superb combination of simplicity, elegance, and innovation give you tools you need to build any application with which you are tasked.
+👉 Cập nhật thông tin database trong `.env`
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough documentation and video tutorial library of any modern web application framework. The [Laravel documentation](https://laravel.com/docs) is thorough, complete, and makes it a breeze to get started learning the framework.
+### 4. Generate key
 
-If you're not in the mood to read, [Laracasts](https://laracasts.com) contains over 900 video tutorials on a range of topics including Laravel, modern PHP, unit testing, JavaScript, and more. Boost the skill level of yourself and your entire team by digging into our comprehensive video library.
+```bash
+php artisan key:generate
+```
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for helping fund on-going Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](http://patreon.com/taylorotwell):
+### 5. Migrate database
 
-- **[Vehikl](http://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[British Software Development](https://www.britishsoftware.co)**
-- **[Styde](https://styde.net)**
-- [Fragrantica](https://www.fragrantica.com)
-- [SOFTonSOFA](https://softonsofa.com/)
-- [User10](https://user10.com)
-- [Soumettre.fr](https://soumettre.fr/)
+```bash
+php artisan migrate
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](http://laravel.com/docs/contributions).
+### 6. Seed dữ liệu mẫu
 
-## Security Vulnerabilities
+```bash
+php artisan db:seed --class=DatabaseSeeder
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell at taylor@laravel.com. All security vulnerabilities will be promptly addressed.
+---
 
-## License
+### 7. Tạo symbolic link cho storage
 
-The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).
+```bash
+php artisan storage:link
+```
+
+---
+
+### 8. Chạy project
+
+```bash
+php artisan serve
+```
+
+👉 Truy cập: http://127.0.0.1:8000
+
+---
+
+## 🔐 Tài khoản mặc định
+
+| Username                                      | Password |
+| --------------------------------------------- | -------- |
+| admin                                         | hs@12345 |
+
+_(Có thể thay đổi trong Seeder)_
+
+---
+
+## 🧱 Công nghệ sử dụng
+
+- Laravel (hiện tại đã upgrade từ 8.5 → 9+)
+- Bootstrap 3
+- AdminLTE Template
+- jQuery
+
+---
+
+## 📦 Package sử dụng
+
+- kyslik/column-sortable
+- intervention/image
+- laravel/passport
+- nwidart/laravel-modules
+- spatie/\*
+
+---
+
+## 📁 Cấu trúc chính
+
+```
+app/
+Modules/
+resources/views/
+routes/
+config/
+```
+
+---
+
+## ⚠️ Lưu ý khi phát triển
+
+- Dự án đã trải qua quá trình nâng cấp Laravel (8.5 → 9 → ...).
+- Một số package có thể cần update khi nâng cấp tiếp.
+- Nên làm việc trên branch riêng khi upgrade framework.
+
+---
+
+## 🚀 Roadmap
+
+- [x] Upgrade Laravel 8.5 → 9
+- [ ] Upgrade Laravel 10
+- [ ] Upgrade Laravel 11
+- [ ] Upgrade Laravel 12
+
+---
+
+## 🤝 Đóng góp
+
+Pull request luôn được chào đón.
+Hãy đảm bảo code tuân thủ coding standards.
+
+---
+
+## 📄 License
+
+MIT License
