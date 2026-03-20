@@ -32,8 +32,12 @@
         @include('admin.layouts.partials.scripts')
     @show
 
-    @toastr_render
     @yield('scripts-footer')
+    @if (session('success'))
+        <script>
+            toastr.success("{{ session('success') }}");
+        </script>
+    @endif
 </body>
 
 </html>

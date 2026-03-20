@@ -29,6 +29,7 @@ class FrontendController extends Controller
 
     public function index()
     {
+        
         return view('theme::front-end.pages.home');
     }
 

@@ -47,7 +47,6 @@ class SettingController extends Controller
                 $setting->update(['value' => $request->get($sc['key'])]);
             }
         }
-        toastr()->success(trans('settings.update_success'));
-        return redirect('admin/settings');
+        return redirect('admin/settings')->with('success', trans('settings.update_success'));
     }
 }

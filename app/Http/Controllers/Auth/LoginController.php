@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class LoginController extends Controller
 {
@@ -102,6 +103,6 @@ class LoginController extends Controller
     public function credentials($request)
     {
         $credentials = $request->only($this->username(), 'password');
-        return array_add($credentials, 'active', Config("settings.active"));
+        return Arr::add($credentials, 'active', Config("settings.active"));
     }
 }

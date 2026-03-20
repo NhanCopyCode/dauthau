@@ -3,7 +3,6 @@
 namespace Modules\Theme\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Database\Eloquent\Factory;
 
 class ThemeServiceProvider extends ServiceProvider
 {
@@ -24,7 +23,6 @@ class ThemeServiceProvider extends ServiceProvider
         $this->registerTranslations();
         $this->registerConfig();
         $this->registerViews();
-        $this->registerFactories();
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
     }
 
@@ -94,12 +92,7 @@ class ThemeServiceProvider extends ServiceProvider
      * 
      * @return void
      */
-    public function registerFactories()
-    {
-        if (! app()->environment('production')) {
-            app(Factory::class)->load(__DIR__ . 'database/factories');
-        }
-    }
+   
 
     /**
      * Get the services provided by the provider.
