@@ -30,5 +30,10 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+    'egp' => [
+        'base_url' => env('BASE_URL'),
+        'token' => env('EGP_TOKEN'),
+        'page_size' => env('PAGE_SIZE', 20),
+        'delay' => env('CRAWL_DELAY', 1),
+    ],
 ];
