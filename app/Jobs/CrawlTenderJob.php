@@ -6,6 +6,7 @@ use App\Services\TenderCrawlerService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CrawlTenderJob implements ShouldQueue
@@ -30,13 +31,12 @@ class CrawlTenderJob implements ShouldQueue
         Log::info("Crawling page: {$page}");
 
         $lockKey = "crawl_page_{$page}";
+        $lock = Cache::lock($lockKey, 300);
 
-        if (Cache::has($lockKey)) {
-            Log::warning("Page {$page} already processed. Skip.");
+        if (!$lock->get()) {
+            Log::warning("Page {$page} is being processed. Skip.");
             return;
         }
-
-        Cache::put($lockKey, true, now()->addHours(6));
 
         try {
             $data = $service->crawlPage($page);
@@ -47,7 +47,20 @@ class CrawlTenderJob implements ShouldQueue
                 return;
             }
 
-            $service->saveItems($items);
+            // $service->saveItems($items);
+
+            $tenders = $service->saveItems($items);
+
+            foreach ($tenders as $tender) {
+               
+                DB::afterCommit(function () use ($tender) {
+                   
+
+                    CrawlTenderDetailJob::dispatch($tender->id)
+                        ->onQueue('detail')
+                        ->delay(now()->addMilliseconds(rand(500, 1500)));
+                });
+            }
 
             CrawlTenderJob::dispatch($page + 1)
                 ->delay(now()->addSeconds(2));
@@ -56,6 +69,8 @@ class CrawlTenderJob implements ShouldQueue
             Log::error("Error page {$page}: " . $e->getMessage());
 
             throw $e;
+        } finally {
+            optional($lock)->release();
         }
     }
 }

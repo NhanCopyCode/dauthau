@@ -5,7 +5,6 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use App\Models\Tender;
 use Carbon\Carbon;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 
 class TenderCrawlerService
@@ -49,8 +48,7 @@ class TenderCrawlerService
 
     private function buildPayload(int $page, int $pageSize): array
     {
-        // 🔥 Lấy thời gian hiện tại (UTC chuẩn API)
-        $now = now()->toISOString(); // ví dụ: 2026-04-01T07:30:00.000Z
+        $now = now()->toISOString();
 
         return [[
             "pageSize" => $pageSize,
@@ -84,78 +82,87 @@ class TenderCrawlerService
     }
 
 
-    public function saveItems(array $items): void
-    {
-        if (empty($items)) {
-            return;
-        }
 
-        $data = [];
+    public function saveItems(array $items): array
+    {
+        if (empty($items)) return [];
+
+        $tenders = [];
 
         foreach ($items as $item) {
 
-            $data[] = [
-                'egp_id' => Arr::get($item, 'id'),
+            $getInt = fn($key) => (int) data_get($item, $key, 0);
+            $getString = fn($key) => data_get($item, $key);
+            $getJson = fn($key) => data_get($item, $key, []);
 
-                'notify_id' => Arr::get($item, 'notifyId'),
-                'notify_no' => Arr::get($item, 'notifyNo'),
-                'notify_version' => Arr::get($item, 'notifyVersion'),
-                'bid_id' => Arr::get($item, 'bidId'),
-                'notify_no_stand' => Arr::get($item, 'notifyNoStand'),
+            $score = data_get($item, 'score');
+            $score = is_numeric($score) ? $score : null;
 
-                'name' => Arr::get($item, 'bidName.0'),
-                'investor' => Arr::get($item, 'investorName'),
-                'investor_code' => Arr::get($item, 'investorCode'),
+            $tender = Tender::updateOrCreate(
+                ['egp_id' => $getString('id')],
+                [
+                    'notify_id' => $getString('notifyId'),
+                    'bid_id' => $getString('bidId'),
 
-                'province' => Arr::get($item, 'locations.0.provName'),
+                    'notify_no' => $getString('notifyNo'),
+                    'notify_version' => $getString('notifyVersion'),
+                    'notify_no_stand' => $getString('notifyNoStand'),
 
-                'bid_close_date' => Arr::get($item, 'bidCloseDate'),
-                'bid_open_date' => Arr::get($item, 'bidOpenDate'),
-                'public_date' => Arr::get($item, 'publicDate'),
+                    'name' => data_get($item, 'bidName.0'),
+                    'bid_names' => $getJson('bidName'),
 
-                'plan_no' => Arr::get($item, 'planNo'),
-                'plan_type' => Arr::get($item, 'planType'),
+                    'investor' => $getString('investorName'),
+                    'investor_code' => $getString('investorCode'),
 
-                'bid_form' => Arr::get($item, 'bidForm'),
-                'bid_mode' => Arr::get($item, 'bidMode'),
+                    'province' => data_get($item, 'locations.0.provName'),
+                    'locations' => $getJson('locations'),
 
-                'invest_field' => Arr::get($item, 'investField.0'),
-                'bid_price' => Arr::get($item, 'bidPrice.0'),
+                    'bid_close_date' => $getString('bidCloseDate'),
+                    'bid_open_date' => $getString('bidOpenDate'),
+                    'public_date' => $getString('publicDate'),
+                    'original_public_date' => $getString('originalPublicDate'),
 
-                'is_internet' => Arr::get($item, 'isInternet'),
-                'is_domestic' => Arr::get($item, 'isDomestic'),
+                    'plan_no' => $getString('planNo'),
+                    'plan_type' => $getString('planType'),
 
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+                    'bid_form' => $getString('bidForm'),
+                    'bid_mode' => $getString('bidMode'),
+                    'process_apply' => $getString('processApply'),
+
+                    'invest_field' => data_get($item, 'investField.0'),
+                    'invest_fields' => $getJson('investField'),
+
+                    'bid_price' => (float) data_get($item, 'bidPrice.0', 0),
+
+                    'status' => $getString('status'),
+                    'status_for_notify' => $getString('statusForNotify'),
+
+                    'type' => $getString('type'),
+                    'step_code' => $getString('stepCode'),
+
+                    'num_petition' => $getInt('numPetition'),
+                    'num_clarify_req' => $getInt('numClarifyReq'),
+                    'num_bidder_tech' => $getInt('numBidderTech'),
+                    'num_petition_hsmt' => $getInt('numPetitionHsmt'),
+                    'num_petition_lcnt' => $getInt('numPetitionLcnt'),
+                    'num_petition_kqlcnt' => $getInt('numPetitionKqlcnt'),
+
+                    'is_internet' => $getInt('isInternet'),
+                    'is_domestic' => $getInt('isDomestic'),
+                    'is_medicine' => $getInt('isMedicine'),
+
+                    'created_by' => $getString('createdBy'),
+                    'score' => $score,
+
+                    'last_seen_at' => now(),
+                    'is_active' => 1,
+                ]
+            );
+
+            $tenders[] = $tender;
         }
 
-        Tender::upsert(
-            $data,
-            ['egp_id'],
-            [
-                'notify_id',
-                'notify_no',
-                'notify_version',
-                'bid_id',
-                'notify_no_stand',
-                'name',
-                'investor',
-                'investor_code',
-                'province',
-                'bid_close_date',
-                'bid_open_date',
-                'public_date',
-                'plan_no',
-                'plan_type',
-                'bid_form',
-                'bid_mode',
-                'invest_field',
-                'bid_price',
-                'is_internet',
-                'is_domestic',
-                'updated_at'
-            ]
-        );
+        return $tenders;
     }
+   
 }

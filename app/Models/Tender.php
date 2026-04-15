@@ -74,4 +74,50 @@ class Tender extends Model
         return $query->whereNotNull('bid_close_date')
             ->where('bid_close_date', '>', now());
     }
+
+    public function detail()
+    {
+        return $this->hasOne(TenderDetail::class);
+    }
+
+    public function getInvestFieldLabelAttribute()
+    {
+        return match ($this->invest_field) {
+            'XL' => 'Xây lắp',
+            'HH' => 'Hàng hóa',
+            'PTV' => 'Phi tư vấn',
+            'HON_HOP' => 'Hỗn hợp',
+            'TV' => 'Tư vấn',
+            default => '—',
+        };
+    }
+
+   public function getLocationFullAttribute(): array
+    {
+        if (empty($this->locations) || !is_array($this->locations)) {
+            return [];
+        }
+
+        return collect($this->locations)
+            ->map(function ($location) {
+                $district = $location['districtName'] ?? null;
+                $province = $location['provName'] ?? null;
+
+                return collect([$district, $province])
+                    ->filter()
+                    ->implode(', ');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+    public function getPublicDateLabelAttribute(): ?string
+    {
+        if (!$this->public_date) {
+            return null;
+        }
+
+        return $this->public_date->format('d/m/Y H:i');
+    }
 }
