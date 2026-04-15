@@ -71,7 +71,7 @@
                                         <div class="card-header"> Thông tin cơ bản </div>
                                         <div class="card-body d-flex flex-column align-items-start infomation">
                                             <div class="d-flex flex-row align-items-start infomation__content">
-                                                <div class="flex items-start infomation__content__title"> Mã TBMT </div>
+                                                <div class="flex items-start infomation__content__title"> Mã E-TBMT </div>
                                                 <div> {{ $tender->notify_no }} </div>
                                             </div>
                                             <div class="d-flex flex-row align-items-start infomation__content">
@@ -418,9 +418,10 @@
                                                         </div>
                                                     @endif
 
-                                                     @if ($tender->price_step)
+                                                    @if ($tender->price_step)
                                                         <div class="flex items-start infomation__content">
-                                                            <div class="flex items-start infomation__content__title">Bước giá </div>
+                                                            <div class="flex items-start infomation__content__title">Bước
+                                                                giá </div>
                                                             <div>{{ $tender->price_step_display }}</div>
                                                         </div>
                                                     @endif
@@ -492,6 +493,13 @@
                                         <div class="card border--none">
                                             <div class="card-header lg:w-[1014px]">{{ $tender->scope_title }}</div>
 
+                                            <span class="my-5"
+                                                style="font-weight: 600;color: #000;">{{ $tender->scope_chapter_name }}</span>
+                                            <div
+                                                class="pb-px-24 font-weight-bold card-body item-table w-full lg:w-[1014px]">
+                                                <a href="{{ route('tenders.export.excel', $tender->id) }}" class="btn btn-primary button-back table-expand"
+                                                    style="float: right; margin-top: 0px; margin-bottom: 5px;background: #be8a4b;border:none;">Xuất
+                                                    Excel</a></div>
                                             <div class="card-body item-table w-full lg:w-[1014px] ">
 
                                                 <div class="table-scroll">

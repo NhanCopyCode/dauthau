@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Services\TenderCrawlerService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +24,55 @@ class CrawlTenderJob implements ShouldQueue
         $this->page = $page;
     }
 
+
+    // public function handle(TenderCrawlerService $service)
+    // {
+    //     $page = $this->page;
+
+    //     Log::info("Crawling page: {$page}");
+
+    //     $lockKey = "crawl_page_{$page}";
+    //     $lock = Cache::lock($lockKey, 300);
+
+    //     if (!$lock->get()) {
+    //         Log::warning("Page {$page} is being processed. Skip.");
+    //         return;
+    //     }
+
+    //     try {
+    //         $data = $service->crawlPage($page);
+    //         $items = $data['page']['content'] ?? [];
+
+    //         if (empty($items)) {
+    //             Log::info("Stop at page: {$page}");
+    //             return;
+    //         }
+
+
+    //         $tenders = $service->saveItems($items);
+
+    //         foreach ($tenders as $tender) {
+
+    //             DB::afterCommit(function () use ($tender) {
+
+
+    //                 CrawlTenderDetailJob::dispatch($tender->id)
+    //                     ->onQueue('detail')
+    //                     ->delay(now()->addMilliseconds(rand(500, 1500)));
+    //             });
+    //         }
+
+    //         CrawlTenderJob::dispatch($page + 1)
+    //             ->delay(now()->addSeconds(2));
+    //     } catch (\Exception $e) {
+
+    //         Log::error("Error page {$page}: " . $e->getMessage());
+
+    //         throw $e;
+    //     } finally {
+    //         optional($lock)->release();
+    //     }
+    // }
 
     public function handle(TenderCrawlerService $service)
     {
@@ -47,27 +97,21 @@ class CrawlTenderJob implements ShouldQueue
                 return;
             }
 
-            // $service->saveItems($items);
-
             $tenders = $service->saveItems($items);
 
-            foreach ($tenders as $tender) {
-               
-                DB::afterCommit(function () use ($tender) {
-                   
+            $jobs = [];
 
-                    CrawlTenderDetailJob::dispatch($tender->id)
-                        ->onQueue('detail')
-                        ->delay(now()->addMilliseconds(rand(500, 1500)));
-                });
+            foreach ($tenders as $tender) {
+                $jobs[] = (new CrawlTenderDetailJob($tender->id))
+                    ->onQueue('detail');
             }
 
-            CrawlTenderJob::dispatch($page + 1)
-                ->delay(now()->addSeconds(2));
+            $jobs[] = (new CrawlTenderJob($page + 1))
+                ->onQueue('default');
+
+            Bus::chain($jobs)->dispatch();
         } catch (\Exception $e) {
-
             Log::error("Error page {$page}: " . $e->getMessage());
-
             throw $e;
         } finally {
             optional($lock)->release();

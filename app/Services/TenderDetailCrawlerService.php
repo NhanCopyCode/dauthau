@@ -202,6 +202,10 @@ class TenderDetailCrawlerService
         $plan = data_get($data, 'bidDetail', []);
         $approval = [];
 
+        $main = array_merge($main, [
+            'hsmt' => $hsmtData
+        ]);
+
         $lotRaw = data_get($data, 'bidoListContractorReofferPassedDTOList', []);
         $lotTable = $this->buildLotTable($lotRaw);
 

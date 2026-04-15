@@ -392,4 +392,12 @@ class TenderDetail extends Model
 
         return number_format($this->price_step, 0, ',', '.') . ' VND';
     }
+
+    public function getScopeChapterNameAttribute(): ?string
+    {
+        return data_get(
+            $this->raw_json,
+            'main.hsmt.bidaInvChapterConfList.0.name'
+        );
+    }
 }
