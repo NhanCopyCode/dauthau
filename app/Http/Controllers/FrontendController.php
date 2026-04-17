@@ -85,6 +85,7 @@ class FrontendController extends Controller
         $query->select([
             'id',
             'name',
+            'egp_id',
             'investor',
             'province',
             'bid_price',
@@ -108,11 +109,12 @@ class FrontendController extends Controller
 
         return view('frontend.pages.home', compact('tenders', 'provinces'));
     }
-    public function show($id)
+    public function show($egp_id)
     {
         $tender = TenderDetail::with('tender')
-            ->where('tender_id', $id)
-           
+            ->whereHas('tender', function ($query) use ($egp_id) {
+                $query->where('egp_id', $egp_id);
+            })
             ->firstOrFail();
 
         return view('frontend.pages.tender-detail', compact('tender'));

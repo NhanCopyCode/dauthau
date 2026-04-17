@@ -14,17 +14,13 @@ class TenderDetailCrawlerService
     {
         try {
             $type = $this->detectTypeFromTender($tender);
-            Log::info('Detected type: ' . $type, ['tender_id' => $tender->id]);
             if ($type === 'adb') {
                 $data = $this->fetchAbd($tender);
                 $mapped = $this->handleAbd($data);
             } else {
                 $ldtData = $this->fetchLdt($tender);
 
-                Log::info("LDT RAW", [
-                    'tender_id' => $tender->id,
-                    'data' => $ldtData
-                ]);
+
                 if ($this->isValidLdtData($ldtData)) {
                     $mapped = $this->handleLdt($ldtData);
                 } else {
@@ -57,11 +53,6 @@ class TenderDetailCrawlerService
                 ['tender_id' => $tender->id],
                 $this->mapToModel($mapped, $tender)
             );
-            Log::info("DETAIL SAVED SUCCESS", [
-                'tender_id' => $tender->id,
-                'notify_no' => $mapped['notify_no'] ?? null,
-                'type' => $type
-            ]);
         } catch (\Exception $e) {
             Log::error("Crawler handle failed", [
                 'tender_id' => $tender->id,
@@ -186,7 +177,6 @@ class TenderDetailCrawlerService
     {
         $main =
             data_get($data, 'bidoNotifyContractorP')
-            ?? data_get($data, 'bidoNotifyContractorP')
             ?? [];
 
         $plan = data_get($data, 'bidpPlanDetail', []);
@@ -318,6 +308,7 @@ class TenderDetailCrawlerService
             'plan_name' => data_get($main, 'pName') ?? data_get($main, 'planName') ?? data_get($plan, 'planName'),
 
             'bid_name' => data_get($main, 'bidName'),
+            'bid_no' => data_get($main, 'bidNo'),
             'investor_name' => data_get($main, 'investorName') ?? data_get($main, 'procuringEntityName'),
 
             'capital_detail' => data_get($main, 'capitalDetail') ?? data_get($plan, 'capitalDetail'),
@@ -346,7 +337,7 @@ class TenderDetailCrawlerService
             'ceiling_price' => data_get($main, 'priceInit'),
             'price_step' => data_get($main, 'priceStep'),
             'bid_validity_period_reoffer' => data_get($main, 'bidValidityPeriod'),
-            'bid_validity_period_unit_reoffer' => 'D', 
+            'bid_validity_period_unit_reoffer' => 'D',
 
             'is_online_bidding' => $this->toBool(data_get($main, 'isInternet')),
             'issue_location' => data_get($main, 'issueLocation'),
@@ -366,11 +357,15 @@ class TenderDetailCrawlerService
             'bid_guarantee_form' => data_get($main, 'guaranteeForm') ?? data_get($main, 'bidGuaranteeForm'),
             'bid_submission_fee' => $this->calculateBidSubmissionFee($main),
 
+            'work_type' => data_get($main, 'workType'),
+
             'approval_decision_number' => data_get($approval, 'decisionNo'),
             'approval_decision_date' => $this->parseDate(data_get($approval, 'decisionDate')),
             'approval_agency' => data_get($approval, 'decisionAgency'),
             'approval_file_name' => data_get($approval, 'decisionFileName'),
             'modification_file_name' => data_get($approval, 'otherFileName'),
+
+            'delay_list' => data_get($main, 'delayDTOList', []),
 
             'raw_json' => [
                 'main' => $main,
@@ -390,13 +385,7 @@ class TenderDetailCrawlerService
             return count($lotList);
         }
 
-        $text = data_get($plan, 'generalTasks', '');
-
-        if (preg_match('/\((\d+)\s*phần\/lô\)/u', $text, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
+        return 0;
     }
 
     private function calculateBidSubmissionFee(array $main): ?int

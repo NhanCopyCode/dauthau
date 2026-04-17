@@ -25,54 +25,7 @@ class CrawlTenderJob implements ShouldQueue
     }
 
 
-    // public function handle(TenderCrawlerService $service)
-    // {
-    //     $page = $this->page;
-
-    //     Log::info("Crawling page: {$page}");
-
-    //     $lockKey = "crawl_page_{$page}";
-    //     $lock = Cache::lock($lockKey, 300);
-
-    //     if (!$lock->get()) {
-    //         Log::warning("Page {$page} is being processed. Skip.");
-    //         return;
-    //     }
-
-    //     try {
-    //         $data = $service->crawlPage($page);
-    //         $items = $data['page']['content'] ?? [];
-
-    //         if (empty($items)) {
-    //             Log::info("Stop at page: {$page}");
-    //             return;
-    //         }
-
-
-    //         $tenders = $service->saveItems($items);
-
-    //         foreach ($tenders as $tender) {
-
-    //             DB::afterCommit(function () use ($tender) {
-
-
-    //                 CrawlTenderDetailJob::dispatch($tender->id)
-    //                     ->onQueue('detail')
-    //                     ->delay(now()->addMilliseconds(rand(500, 1500)));
-    //             });
-    //         }
-
-    //         CrawlTenderJob::dispatch($page + 1)
-    //             ->delay(now()->addSeconds(2));
-    //     } catch (\Exception $e) {
-
-    //         Log::error("Error page {$page}: " . $e->getMessage());
-
-    //         throw $e;
-    //     } finally {
-    //         optional($lock)->release();
-    //     }
-    // }
+   
 
     public function handle(TenderCrawlerService $service)
     {

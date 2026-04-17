@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Category\Strategies\WorkTypeStrategy;
+use App\Services\CategoryService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,6 +53,7 @@ class TenderDetail extends Model
         'lot_table' => 'array',
         'scope_table' => 'array',
         'raw_json' => 'array',
+        'delay_list' => 'array',
     ];
 
 
@@ -399,5 +402,18 @@ class TenderDetail extends Model
             $this->raw_json,
             'main.hsmt.bidaInvChapterConfList.0.name'
         );
+    }
+
+    public function getWorkTypeNameAttribute(): ?string
+    {
+        $code = $this->work_type;
+
+        if (empty($code)) {
+            return null;
+        }
+
+        $service = app(CategoryService::class);
+
+        return $service->getName(WorkTypeStrategy::TYPE, $code) ?? $code;
     }
 }

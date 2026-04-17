@@ -65,13 +65,14 @@
                             </ul>
                             <div id="nav-tabContent" class="tab-content">
                                 <div id="info-general" class="tab-pane m-t-16 active">
-                                    <div class="mb-2"><span class="tags-fileAttach style-t7HmN" id="style-t7HmN">Tải
-                                            TBMT</span></div>
+                                    <a href="{{ route('tenders.download', ['egp_id' => $tender->tender->egp_id]) }}"
+                                        class="mb-2"><span class="tags-fileAttach style-t7HmN" id="style-t7HmN">Tải
+                                            TBMT</span></a>
                                     <div class="card border--none">
                                         <div class="card-header"> Thông tin cơ bản </div>
                                         <div class="card-body d-flex flex-column align-items-start infomation">
                                             <div class="d-flex flex-row align-items-start infomation__content">
-                                                <div class="flex items-start infomation__content__title"> Mã E-TBMT </div>
+                                                <div class="flex items-start infomation__content__title"> Mã TBMT </div>
                                                 <div> {{ $tender->notify_no }} </div>
                                             </div>
                                             <div class="d-flex flex-row align-items-start infomation__content">
@@ -198,11 +199,11 @@
                                             </div>
 
                                             <div
-                                                class="flex items-start infomation__content {{ $tender->lot_count > 0 ? '' : 'hidden' }}">
+                                                class="flex items-start infomation__content {{ $tender->is_multi_lot ? '' : 'hidden' }}">
                                                 <div class="flex items-start infomation__content__title"> Số lượng phần
                                                     (lô) </div>
                                                 <div>
-                                                    {{ is_null($tender->lot_count) ? 'Không' : 'Có' }}
+                                                    {{ $tender->lot_count }}
                                                 </div>
                                             </div>
 
@@ -239,7 +240,7 @@
                                                     <div>
                                                         {{ $tender->bid_submission_fee
                                                             ? number_format($tender->bid_submission_fee, 0, ',', '.') . ' VND'
-                                                            : 'Miễn phí / —' }}
+                                                            : 'Miễn phí' }}
                                                     </div>
                                                 </div>
 
@@ -329,6 +330,16 @@
                                                     </div>
                                                 </div>
 
+                                                @if ($tender->work_type)
+                                                    <div class="flex items-start infomation__content">
+                                                        <div class="flex items-start infomation__content__title"> Loại công
+                                                            trình</div>
+                                                        <div>
+                                                            {{ $tender->work_type_name }}
+                                                        </div>
+                                                    </div>
+                                                @endif
+
                                             </div>
                                         </div>
 
@@ -384,6 +395,85 @@
 
                                             </div>
                                         </div>
+
+                                        @if (!empty($tender->delay_list) && count($tender->delay_list) > 0)
+                                            <div class="card border--none ">
+                                                <div class="card-header">
+                                                    Thông tin gia hạn
+                                                </div>
+
+                                                <div class="card-body item-table  w-full lg:w-[1014px] mt-5 overflow-x-auto"
+                                                    style="padding: 0 !important;">
+                                                    <table class="table table-notStt table-expand min-w-[800px]">
+                                                        <thead class="thead">
+                                                            <tr>
+                                                                <th class="table-active" style="width: 6%">STT</th>
+                                                                <th class="table-active">Thời điểm gia hạn thành công</th>
+                                                                <th class="table-active">Thời điểm đóng thầu cũ</th>
+                                                                <th class="table-active">Thời điểm đóng thầu sau gia hạn
+                                                                </th>
+                                                                <th class="table-active">Thời điểm mở thầu cũ</th>
+                                                                <th class="table-active">Thời điểm mở thầu sau gia hạn</th>
+                                                                <th class="table-active">Lý do</th>
+                                                            </tr>
+                                                        </thead>
+
+                                                        <tbody>
+                                                            @foreach ($tender->delay_list as $index => $it)
+                                                                <tr>
+                                                                    {{-- STT --}}
+                                                                    <td class="lf-th-content">
+                                                                        Lần {{ $index + 1 }}
+                                                                    </td>
+
+                                                                    {{-- createdDate --}}
+                                                                    <td class="lf-th-content">
+                                                                        {{ \Carbon\Carbon::parse($it['createdDate'])->format('d/m/Y H:i') }}
+                                                                    </td>
+
+                                                                    {{-- bidCloseDate --}}
+                                                                    <td class="lf-th-content">
+                                                                        {{ \Carbon\Carbon::parse($it['bidCloseDate'])->format('d/m/Y H:i') }}
+                                                                    </td>
+
+                                                                    {{-- bidCloseDelayDate --}}
+                                                                    <td
+                                                                        class="lf-th-content {{ ($it['createdBy'] ?? '') == 'root' ? 'font-weight-bold' : '' }}">
+                                                                        {{ \Carbon\Carbon::parse($it['bidCloseDelayDate'])->format('d/m/Y H:i') }}
+                                                                    </td>
+
+                                                                    {{-- bidOpenDate --}}
+                                                                    <td class="lf-th-content">
+                                                                        {{ \Carbon\Carbon::parse($it['bidOpenDate'])->format('d/m/Y H:i') }}
+                                                                    </td>
+
+                                                                    {{-- bidOpenDelayDate --}}
+                                                                    <td
+                                                                        class="lf-th-content {{ ($it['createdBy'] ?? '') == 'root' ? 'font-weight-bold' : '' }}">
+                                                                        {{ \Carbon\Carbon::parse($it['bidOpenDelayDate'])->format('d/m/Y H:i') }}
+                                                                    </td>
+
+                                                                    {{-- reason --}}
+                                                                    <td
+                                                                        class="lf-th-content {{ ($it['createdBy'] ?? '') == 'root' ? 'text-danger' : '' }}">
+                                                                        {{ $it['reason'] }}
+
+                                                                        @if (($it['createdBy'] ?? '') == 'root')
+                                                                            <br>
+                                                                            <span>
+                                                                                Lưu ý: Việc đánh giá E–HSQT, E–HSDST,
+                                                                                E–HSDT... trước thời điểm hệ thống gặp sự cố
+                                                                            </span>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        @endif
                                     @else
                                         <div class="card border--none">
                                             <div class="card-header"> Thông tin chào giá </div>
@@ -497,9 +587,11 @@
                                                 style="font-weight: 600;color: #000;">{{ $tender->scope_chapter_name }}</span>
                                             <div
                                                 class="pb-px-24 font-weight-bold card-body item-table w-full lg:w-[1014px]">
-                                                <a href="{{ route('tenders.export.excel', $tender->id) }}" class="btn btn-primary button-back table-expand"
+                                                <a href="{{ route('tenders.export.excel', $tender->id) }}"
+                                                    class="btn btn-primary button-back table-expand"
                                                     style="float: right; margin-top: 0px; margin-bottom: 5px;background: #be8a4b;border:none;">Xuất
-                                                    Excel</a></div>
+                                                    Excel</a>
+                                            </div>
                                             <div class="card-body item-table w-full lg:w-[1014px] ">
 
                                                 <div class="table-scroll">
@@ -661,4 +753,18 @@
         </div>
 
     </div>
+@endsection
+
+@section('scripts-footer')
+    <script>
+        axios.get(`/tenders/${$tender->tender->egp_id}/download`, {
+            responseType: 'blob'
+        }).then(res => {
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Thông báo mời thầu.pdf';
+            a.click();
+        });
+    </script>
 @endsection

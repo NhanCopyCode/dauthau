@@ -20,7 +20,7 @@
                   </div>
 
                   <!-- ================= TITLE ================= -->
-                  <a href="{{ route('tenders.show', $tender->id) }}"
+                  <a href="{{ route('tenders.show', ['egp_id' => $tender->egp_id]) }}"
                       class="text-lg md:text-xl font-semibold text-blue-500 leading-snug line-clamp-2 mb-3">
                       {{ $tender->name }}
                   </a>
@@ -45,7 +45,7 @@
                               <div>
                                   <p class="text-gray-500">Lĩnh vực</p>
                                   <p class="font-medium">
-                                      {{ $tender->invest_field_label  }}
+                                      {{ $tender->invest_field_label }}
                                   </p>
                               </div>
 

@@ -2,21 +2,20 @@
 
 namespace App\Providers;
 
+use App\Services\Category\Strategies\WorkTypeStrategy;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
+    public function register()
     {
-        //
+        $this->app->singleton(\App\Services\CategoryService::class, function ($app) {
+            return new \App\Services\CategoryService([
+                new WorkTypeStrategy(),
+            ]);
+        });
     }
-
-    /**
-     * Bootstrap any application services.
-     */
+     
     public function boot(): void
     {
         //
