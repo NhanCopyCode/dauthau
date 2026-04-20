@@ -12,5 +12,6 @@ Artisan::command('inspire', function () {
 
 // Schedule::command('tenders:cleanup')->hourly();
 Schedule::command('crawl:tenders')
-    ->everyFifteenMinutes()
+    ->everySixHours()
+    ->runInBackground()
     ->withoutOverlapping();

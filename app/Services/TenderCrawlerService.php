@@ -16,7 +16,6 @@ class TenderCrawlerService
 
         $payload = $this->buildPayload($page, $pageSize);
 
-        Log::info("Payload", $payload);
 
         $response = Http::timeout(30)
             ->retry(3, 1000)
@@ -41,7 +40,6 @@ class TenderCrawlerService
 
         $data = $response->json();
 
-        Log::info("Items count: " . count($data['page']['content'] ?? []));
 
         return $data ?? [];
     }
