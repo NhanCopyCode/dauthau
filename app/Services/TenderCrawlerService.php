@@ -67,7 +67,6 @@ class TenderCrawlerService
                         "searchType" => "not_in",
                         "fieldValues" => ["1"]
                     ],
-                    // 🔥 FIX QUAN TRỌNG
                     [
                         "fieldName" => "bidCloseDate",
                         "searchType" => "range",

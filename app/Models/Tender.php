@@ -92,7 +92,7 @@ class Tender extends Model
         };
     }
 
-   public function getLocationFullAttribute(): array
+    public function getLocationFullAttribute(): array
     {
         if (empty($this->locations) || !is_array($this->locations)) {
             return [];
@@ -119,5 +119,11 @@ class Tender extends Model
         }
 
         return $this->public_date->format('d/m/Y H:i');
+    }
+
+    public function hsmtChapters()
+    {
+        return $this->hasMany(\App\Models\TenderHsmtChapter::class, 'tender_id')
+            ->orderBy('order_index');
     }
 }

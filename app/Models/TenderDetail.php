@@ -54,6 +54,8 @@ class TenderDetail extends Model
         'scope_table' => 'array',
         'raw_json' => 'array',
         'delay_list' => 'array',
+
+        'contractors' => 'array',
     ];
 
 
@@ -61,6 +63,11 @@ class TenderDetail extends Model
     public function tender(): BelongsTo
     {
         return $this->belongsTo(Tender::class);
+    }
+
+    public function contractors()
+    {
+        return $this->hasMany(ContractorResult::class, 'tender_id');
     }
 
 

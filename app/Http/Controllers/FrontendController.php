@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Tender;
 use App\Models\TenderDetail;
+use App\Services\HsmtTreeService;
 
 class FrontendController extends Controller
 {
-   public function index(Request $request)
+    public function index(Request $request)
     {
         $query = Tender::query();
 
@@ -109,14 +110,66 @@ class FrontendController extends Controller
 
         return view('frontend.pages.home', compact('tenders', 'provinces'));
     }
-    public function show($egp_id)
+    // public function show($egp_id)
+    // {
+    //     $tenderDetail = TenderDetail::with('tender')
+    //         ->whereHas('tender', function ($query) use ($egp_id) {
+    //             $query->where('egp_id', $egp_id);
+    //         })
+    //         ->firstOrFail();
+
+    //     $stepCode = $tenderDetail->tender->step_code;
+
+    //     $hasCgtt = in_array($tenderDetail->bid_form, ['CGTTRG', 'CGTT']);
+
+    //     $hasContract = false;
+
+
+    //     $tender = $tenderDetail->tender;
+
+    //     // build tree
+    //     $chapters = $tender->hsmtChapters
+    //         ->sortBy('order_index')
+    //         ->values();
+
+    //     $tree = $this->buildTree($chapters);
+
+
+    //     return view('frontend.pages.tender-detail', compact(
+    //         'tenderDetail',
+    //         'tender',
+    //         'tree',
+    //         'stepCode',
+    //         'hasCgtt',
+    //         'hasContract'
+    //     ));
+    // }
+
+    public function show($egp_id, HsmtTreeService $treeService)
     {
-        $tender = TenderDetail::with('tender')
+        $tenderDetail = TenderDetail::with([
+            'tender.hsmtChapters' // ✅ eager load chuẩn
+        ])
             ->whereHas('tender', function ($query) use ($egp_id) {
                 $query->where('egp_id', $egp_id);
             })
             ->firstOrFail();
 
-        return view('frontend.pages.tender-detail', compact('tender'));
+        $tender = $tenderDetail->tender;
+
+        $tree = $treeService->build(
+            $tender->hsmtChapters
+        );
+
+        return view('frontend.pages.tender-detail', [
+            'tenderDetail' => $tenderDetail,
+            'tender' => $tender,
+            'tree' => $tree,
+            'stepCode' => $tender->step_code,
+            'hasCgtt' => in_array($tenderDetail->bid_form, ['CGTTRG', 'CGTT']),
+            'hasContract' => false,
+        ]);
     }
+
+   
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ContractorResult;
 use App\Models\Tender;
 use App\Models\TenderDetail;
 use Carbon\Carbon;
@@ -10,6 +11,13 @@ use Illuminate\Support\Facades\Log;
 
 class TenderDetailCrawlerService
 {
+
+    protected HsmtService $hsmtService;
+
+    public function __construct(HsmtService $hsmtService)
+    {
+        $this->hsmtService = $hsmtService;
+    }
     public function handle(Tender $tender): void
     {
         try {
@@ -49,10 +57,19 @@ class TenderDetailCrawlerService
                 return;
             }
 
-            TenderDetail::updateOrCreate(
+            $tender = TenderDetail::updateOrCreate(
                 ['tender_id' => $tender->id],
                 $this->mapToModel($mapped, $tender)
             );
+
+            try {
+                $this->hsmtService->handle($tender->tender_id);
+            } catch (\Throwable $e) {
+                Log::error("HSMT crawl failed", [
+                    'tender_id' => $tender->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
         } catch (\Exception $e) {
             Log::error("Crawler handle failed", [
                 'tender_id' => $tender->id,
@@ -125,6 +142,8 @@ class TenderDetailCrawlerService
         }
     }
 
+
+
     private function buildPayloadByType(string $type, string $id): array
     {
         switch ($type) {
@@ -167,10 +186,10 @@ class TenderDetailCrawlerService
 
         $main = array_replace_recursive($source1, $source2);
 
-        $plan = data_get($data, 'bidpPlanDetail', []);
-        $approval = data_get($data, 'bidInvContractorOfflineDTO', []);
+        $plan = data_get($data, 'bidpPlanDetail', []) ?? [];
+        $approval = data_get($data, 'bidInvContractorOfflineDTO', []) ?? [];
 
-        return $this->buildCommonData($main, $plan, $approval);
+        return $this->buildCommonData($main, $plan, $approval, $data);
     }
 
     private function handleAbd(array $data): array
@@ -179,10 +198,10 @@ class TenderDetailCrawlerService
             data_get($data, 'bidoNotifyContractorP')
             ?? [];
 
-        $plan = data_get($data, 'bidpPlanDetail', []);
-        $approval = data_get($data, 'bidInvContractorOfflineDTO', []);
+        $plan = data_get($data, 'bidpPlanDetail', []) ?? [];
+        $approval = data_get($data, 'bidInvContractorOfflineDTO', []) ?? [];
 
-        return $this->buildCommonData($main, $plan, $approval);
+        return $this->buildCommonData($main, $plan, $approval, $data);
     }
 
 
@@ -208,7 +227,7 @@ class TenderDetailCrawlerService
         ];
 
         return array_merge(
-            $this->buildCommonData($main, $plan, $approval),
+            $this->buildCommonData($main, $plan, $approval, $data),
             [
                 'lot_table' => $lotTable,
                 'scope_table' => $scopeTable
@@ -288,11 +307,11 @@ class TenderDetailCrawlerService
         ];
     }
 
-    private function buildCommonData(array $main, array $plan, array $approval): array
+    private function buildCommonData(array $main, array $plan, array $approval, array $data): array
     {
         return array_merge(
             $this->mapCoreFields($main, $plan),
-            $this->enrichExtraFields($main, $plan, $approval)
+            $this->enrichExtraFields($main, $plan, $approval, $data)
         );
     }
 
@@ -302,6 +321,7 @@ class TenderDetailCrawlerService
             'notify_no' => data_get($main, 'notifyNo'),
             'notify_version' => data_get($main, 'notifyVersion'),
             'plan_no' => data_get($main, 'planNo') ?? data_get($plan, 'planNo'),
+            'plan_id' => data_get($plan, 'planId'),
 
             'public_date' => $this->parseDate(data_get($main, 'publicDate')),
             'plan_type' => data_get($main, 'planType'),
@@ -315,7 +335,7 @@ class TenderDetailCrawlerService
         ];
     }
 
-    private function enrichExtraFields(array $main, array $plan, array $approval): array
+    private function enrichExtraFields(array $main, array $plan, array $approval, array $data): array
     {
         return [
             'invest_field' => data_get($main, 'investField'),
@@ -365,19 +385,63 @@ class TenderDetailCrawlerService
             'approval_file_name' => data_get($approval, 'decisionFileName'),
             'modification_file_name' => data_get($approval, 'otherFileName'),
 
-            'delay_list' => data_get($main, 'delayDTOList', []),
+            'contractors' => $this->mapContractors(
+                is_array(data_get($data, 'contractorsResultAll'))
+                    ? data_get($data, 'contractorsResultAll')
+                    : []
+            ),
+
+            'delay_list' => data_get($main, 'delayDTOList') ?? data_get($data, 'delayList'),
 
             'raw_json' => [
-                'main' => $main,
-                'plan' => $plan,
-                'approval' => $approval
+                $data
             ]
 
 
         ];
     }
 
-    private function resolveLotCount(array $main, array $plan): ?int
+    private function mapContractors(array $contractors = []): array
+    {
+        return collect($contractors)->map(function ($item) {
+            return [
+                'id' => data_get($item, 'id'),
+                'contractor_code' => data_get($item, 'contractorCode'),
+                'contractor_name' => data_get($item, 'contractorName'),
+
+                'times' => data_get($item, 'times'),
+
+                'reoffer_price' => data_get($item, 'reofferPrice'),
+                'reoffer_price_final' => data_get($item, 'reofferPriceFinal'),
+
+                'lot_no' => data_get($item, 'lotNo'),
+                'lot_name' => data_get($item, 'lotName'),
+
+                'reoffer_date' => $this->parseDate(data_get($item, 'reofferDate')),
+
+                'is_newest' => (int) data_get($item, 'isNewest', 0),
+
+                'form_value' => $this->safeJsonDecode(data_get($item, 'formValue')),
+            ];
+        })->values()->toArray();
+    }
+
+    private function safeJsonDecode(?string $json): ?array
+    {
+        if (empty($json)) return null;
+
+        try {
+            return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable $e) {
+            Log::warning('Invalid JSON in contractor form_value', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+
+    private function resolveLotCount(array $main, array $plan): int
     {
         $lotList = data_get($main, 'lotDTOList');
 
@@ -385,7 +449,17 @@ class TenderDetailCrawlerService
             return count($lotList);
         }
 
-        return 0;
+        $contractors = data_get($main, 'bidoListContractorReofferPassedDTOList', []);
+
+        if (!is_array($contractors) || empty($contractors)) {
+            return 0;
+        }
+
+        return collect($contractors)
+            ->pluck('lotNo')
+            ->filter()
+            ->unique()
+            ->count();
     }
 
     private function calculateBidSubmissionFee(array $main): ?int
