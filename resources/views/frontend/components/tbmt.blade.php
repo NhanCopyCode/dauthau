@@ -21,7 +21,7 @@
                            </a>
                        </li>
 
-                       <li class="nav-item">
+                       <li class="nav-item {{ $tenderDetail->tender->has_hsmt ? '' : 'hidden' }}">
                            <a href="javascript:void(0)" class="tags-tab text-nowrap" data-tab="hsmt">
                                Hồ sơ mời thầu
                            </a>

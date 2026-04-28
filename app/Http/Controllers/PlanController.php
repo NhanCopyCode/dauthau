@@ -49,47 +49,7 @@ class PlanController extends Controller
         ));
     }
 
-    // public function showDetail($id)
-    // {
-    //     $token = config('crawler.token');
-
-    //     $url = "https://muasamcong.mpi.gov.vn/o/egp-portal-contractor-selection-v2/services/lcnt/bid-po-bidp-plan-project-view/get-bidp-plan-detail-by-id?token={$token}";
-
-    //     $response = Http::timeout(30)
-    //         ->retry(3, 1000)
-    //         ->withHeaders([
-    //             "accept" => "application/json",
-    //             "content-type" => "application/json",
-    //         ])
-    //         ->withOptions([
-    //             'verify' => false
-    //         ])
-    //         ->post($url, [
-    //             'id' => $id
-    //         ]);
-
-
-    //     if (!$response->successful()) {
-    //         abort(404, 'Không lấy được chi tiết gói thầu');
-    //     }
-
-    //     $data = $response->json();
-
-    //     $detail = $data;
-
-    //     $locations = data_get($data, 'bidLocation', []);
-    //     $lots = data_get($data, 'bidpBidLotList', []);
-
-    //     $tender = Tender::with('detail')->where('plan_no', data_get($detail, 'planNo'))->first();
-
-
-    //     return view('frontend.pages.khlcnt-detail', compact(
-    //         'detail',
-    //         'locations',
-    //         'lots',
-    //         'tender'
-    //     ));
-    // }
+    
 
     public function showDetail(Request $request, $id)
     {
@@ -117,7 +77,6 @@ class PlanController extends Controller
         }
 
         $detail = $detailResponse->json();
-
         // ===== 3. CALL API PLAN (QUAN TRỌNG) =====
         $plan = null;
 
@@ -142,8 +101,15 @@ class PlanController extends Controller
         }
 
         $locations = data_get($detail, 'bidLocation', []);
-        $lots = data_get($detail, 'bidpBidLotList', []);
+        $lots = data_get($planResponse, 'bidpPlanDetailToProjectList', []);
+        $contractors_list = collect(data_get($detail, 'resultDTO.lotResultDTO', []))
+            ->pluck('contractorList')   // lấy mảng contractorList của từng lot
+            ->filter()                  // loại null
+            ->flatten(1)                // gộp lại thành 1 mảng
+            ->values()
+            ->all();
 
+            
         $tender = Tender::with('detail')
             ->where('plan_no', data_get($detail, 'planNo'))
             ->first();
@@ -153,7 +119,8 @@ class PlanController extends Controller
             'locations',
             'lots',
             'tender',
-            'plan' 
+            'plan',
+            'contractors_list'
         ));
     }
 }

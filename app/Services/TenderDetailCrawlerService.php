@@ -341,6 +341,7 @@ class TenderDetailCrawlerService
             'invest_field' => data_get($main, 'investField'),
             'bid_form' => data_get($main, 'bidForm'),
             'contract_type' => data_get($main, 'contractType') ?? data_get($main, 'cType'),
+            'is_agree_frame' => $this->toBool(data_get($main, 'isAgreeFrame')) ?? 0,
 
             'is_domestic' => $this->toBool(data_get($main, 'isDomestic')),
             'bid_mode' => data_get($main, 'bidMode'),

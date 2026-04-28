@@ -148,7 +148,7 @@ class FrontendController extends Controller
     public function show($egp_id, HsmtTreeService $treeService)
     {
         $tenderDetail = TenderDetail::with([
-            'tender.hsmtChapters' // ✅ eager load chuẩn
+            'tender.hsmtChapters' 
         ])
             ->whereHas('tender', function ($query) use ($egp_id) {
                 $query->where('egp_id', $egp_id);
@@ -156,10 +156,13 @@ class FrontendController extends Controller
             ->firstOrFail();
 
         $tender = $tenderDetail->tender;
+        $isAgreeFrame = $tenderDetail->is_agree_frame ?? 0;
 
         $tree = $treeService->build(
-            $tender->hsmtChapters
+            $tender->hsmtChapters,
+            $isAgreeFrame
         );
+
 
         return view('frontend.pages.tender-detail', [
             'tenderDetail' => $tenderDetail,

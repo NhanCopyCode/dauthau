@@ -124,11 +124,7 @@
 
                                                              <td class="lf-th-content"
                                                                  style="color:#40a9ff; cursor:pointer;">
-                                                                 @if ($notifyNo)
-                                                                     <span>{{ $notifyNo }}</span>
-                                                                 @else
-                                                                     -
-                                                                 @endif
+
                                                              </td>
                                                          </tr>
 
@@ -285,7 +281,7 @@
                                              <div class="d-flex flex-row align-items-start infomation__content">
                                                  <div class="infomation__content__title">Thời gian bắt đầu LCNT</div>
                                                  <div>
-                                                     {{ data_get($detail, 'bidStartQuarter') }}
+                                                     Quý {{ data_get($detail, 'bidStartQuarter') }},
                                                      {{ data_get($detail, 'bidStartYear') }}
                                                  </div>
                                              </div>
@@ -308,6 +304,70 @@
                                                  <div>{{ data_get($detail, 'isMultiLot') ? 'Có' : 'Không' }}</div>
                                              </div>
 
+                                         </div>
+                                     </div>
+
+                                     <div class="card border--none card-expand">
+                                         <div class="card-header">
+                                             Thông tin Nhà thầu trúng thầu
+                                         </div>
+                                         <div class="card-body item-table" style="padding: 0px !important;">
+                                             <table class="table table-notStt table-expand">
+                                                 <thead class="thead">
+                                                     <tr>
+                                                         <th scope="col" style="width: 5%;">STT</th> <!---->
+                                                         <th scope="col" style="width: 12%;">Mã định danh</th>
+                                                         <th scope="col">Tên nhà thầu</th>
+                                                         <th scope="col">Tên liên danh</th> <!----> <!----> <!---->
+                                                         <!----> <!----> <!---->
+                                                         <th scope="col" style="width: 110px;">Giá trúng thầu (VND)
+                                                         </th>
+                                                         <th scope="col"><!---->
+                                                             Thời gian thực hiện gói thầu
+                                                         </th> <!---->
+                                                         <th scope="col">Thời gian thực hiện hợp đồng</th>
+                                                     </tr>
+                                                 </thead>
+                                                 <tbody>
+                                                     @forelse ($contractors_list as $index => $contractor)
+                                                         <tr>
+                                                             <td rowspan="1" style="vertical-align: middle;">
+                                                                 {{ $index + 1 }}
+                                                             </td>
+
+                                                             <td style="vertical-align: middle;">
+                                                                 {{ $contractor['taxCode'] ?? '' }}
+                                                             </td>
+
+                                                             <td style="vertical-align: middle;">
+                                                                 {{ $contractor['orgFullname'] ?? '' }}
+                                                             </td>
+
+                                                             <td rowspan="1" style="vertical-align: middle;">
+                                                                 {{ $contractor['ventureName'] ?? '' }}
+                                                             </td>
+
+                                                             <td rowspan="1" style="vertical-align: middle;">
+                                                                 {{ number_format($contractor['bidWiningPrice'] ?? 0, 0, ',', '.') }}
+                                                             </td>
+
+                                                             <td rowspan="1" style="vertical-align: middle;">
+                                                                 {{ $contractor['bidExecutionTime'] ?? '' ? $contractor['bidExecutionTime'] . ' ngày' : '' }}
+                                                             </td>
+
+                                                             <td rowspan="1" style="vertical-align: middle;">
+                                                                 {{ $contractor['cperiod'] ?? '' }}
+                                                             </td>
+                                                         </tr>
+                                                     @empty
+                                                         <tr>
+                                                             <td colspan="7" class="text-center">
+                                                                 Không có dữ liệu nhà thầu
+                                                             </td>
+                                                         </tr>
+                                                     @endforelse
+                                                 </tbody>
+                                             </table>
                                          </div>
                                      </div>
                                  </div>

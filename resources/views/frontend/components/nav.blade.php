@@ -11,14 +11,14 @@
          </li>
 
          <!-- TAB: CGTT -->
-         @if ($hasCgtt)
+         {{-- @if ($hasCgtt)
              <li class="nav-item">
                  <a href="javascript:void(0)" class="tab-cgtt {{ request('tab') == 'cgtt' ? 'active' : '' }}"
                      onclick="changeTab('cgtt')">
                      Phòng chào giá trực tuyến
                  </a>
              </li>
-         @endif
+         @endif --}}
 
          <!-- TAB: KQ CGTT -->
          @if ($hasCgtt && str_contains($stepCode, 'step-3'))

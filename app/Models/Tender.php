@@ -126,4 +126,13 @@ class Tender extends Model
         return $this->hasMany(\App\Models\TenderHsmtChapter::class, 'tender_id')
             ->orderBy('order_index');
     }
+
+    public function getHasHsmtAttribute(): bool
+    {
+        if ($this->relationLoaded('hsmtChapters')) {
+            return $this->hsmtChapters->isNotEmpty();
+        }
+
+        return $this->hsmtChapters()->exists();
+    }
 }
