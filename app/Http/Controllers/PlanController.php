@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 
 class PlanController extends Controller
 {
-    //
+   
     public function show($id)
     {
         $token = config('crawler.token');
@@ -55,10 +55,8 @@ class PlanController extends Controller
     {
         $token = config('crawler.token');
 
-        // ===== 1. LẤY plan_id từ query =====
         $planId = $request->query('plan_id');
 
-        // ===== 2. CALL API DETAIL =====
         $detailUrl = "https://muasamcong.mpi.gov.vn/o/egp-portal-contractor-selection-v2/services/lcnt/bid-po-bidp-plan-project-view/get-bidp-plan-detail-by-id?token={$token}";
 
         $detailResponse = Http::timeout(30)
@@ -77,8 +75,8 @@ class PlanController extends Controller
         }
 
         $detail = $detailResponse->json();
-        // ===== 3. CALL API PLAN (QUAN TRỌNG) =====
         $plan = null;
+        $planResponse = null;
 
         if ($planId) {
             $planUrl = "https://muasamcong.mpi.gov.vn/o/egp-portal-contractor-selection-v2/services/expose/lcnt/bid-po-bidp-plan-project-view/get-by-id?token={$token}";
@@ -103,9 +101,9 @@ class PlanController extends Controller
         $locations = data_get($detail, 'bidLocation', []);
         $lots = data_get($planResponse, 'bidpPlanDetailToProjectList', []);
         $contractors_list = collect(data_get($detail, 'resultDTO.lotResultDTO', []))
-            ->pluck('contractorList')   // lấy mảng contractorList của từng lot
-            ->filter()                  // loại null
-            ->flatten(1)                // gộp lại thành 1 mảng
+            ->pluck('contractorList')   
+            ->filter()                  
+            ->flatten(1)              
             ->values()
             ->all();
 

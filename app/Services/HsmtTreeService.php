@@ -137,6 +137,7 @@ class HsmtTreeService
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
+                    'pcode' => $item->pcode,
                     'level' => $item->level,
                     'number' => null, // sẽ set sau
                     'is_webform' => $item->is_webform,

@@ -12,7 +12,6 @@ class HsmtService
     public function handle(int $tenderId): void
     {
         $tender = Tender::findOrFail($tenderId);
-        Log::info("Found tender in hsmt service: ", ['tender' => $tender]);
         $data = $this->fetchHsmt(
             $tender->notify_id,
             $tenderId,
@@ -24,116 +23,7 @@ class HsmtService
         }
     }
 
-    // private function fetchHsmt(string $id, int $tenderId, ?string $processApplyFromDb = null): array
-    // {
-    //     if (empty($processApplyFromDb)) {
-    //         Log::warning("HSMT SKIPPED - missing process_apply", [
-    //             'tender_id' => $tenderId,
-    //             'id' => $id
-    //         ]);
-    //         return [];
-    //     }
-
-    //     $payload = [
-    //         'id' => $id,
-    //         'processApply' => $processApplyFromDb,
-    //     ];
-
-    //     $res = $this->callApi($payload);
-
-    //     if (empty($res)) {
-    //         Log::info("HSMT EMPTY RESPONSE", [
-    //             'tender_id' => $tenderId,
-    //             'process_apply' => $processApplyFromDb
-    //         ]);
-    //         return [];
-    //     }
-
-    //     if (!empty($res['bidaInvChapterConfList'])) {
-
-    //         $chapters = collect($res['bidaInvChapterConfList'])->map(function ($item) {
-    //             return [
-    //                 'api_id' => $item['id'] ?? null,
-    //                 'code' => $item['code'] ?? null,
-    //                 'pcode' => $item['pcode'] ?? null,
-
-    //                 'name' => $item['name'] ?? null,
-    //                 'name_en' => $item['nameEn'] ?? null,
-    //                 'description' => $item['description'] ?? null,
-
-    //                 'order_index' => $item['orderIndex'] ?? 0,
-    //                 'level' => $item['lev'] ?? 0,
-
-    //                 'is_webform' => $item['isWebform'] ?? false,
-
-    //                 'bid_form' => $item['bidForm'] ?? null,
-    //                 'bid_field' => $item['bidField'] ?? null,
-    //                 'bid_file' => $item['bidFile'] ?? null,
-    //                 'contract_type' => $item['contractType'] ?? null,
-
-    //                 'process_type' => $item['processType'] ?? null,
-
-    //                 'raw' => $item
-    //             ];
-    //         })->toArray();
-
-    //         return [
-    //             'type' => 'chapter',
-    //             'chapters' => $chapters
-    //         ];
-    //     }
-    //     if (!empty($res['bidoInvBiddingDTO'])) {
-
-    //         $normalized = collect($res['bidoInvBiddingDTO'])->map(function ($item) {
-    //             return [
-    //                 'notifyId' => $item['notifyId'] ?? null,
-    //                 'chapterCode' => $item['chapterCode'] ?? null,
-    //                 'formCode' => $item['formCode'] ?? null,
-    //                 'data' => $this->safeJsonDecode($item['formValue']),
-    //                 'raw' => $item
-    //             ];
-    //         })->toArray();
-
-    //         return [
-    //             'type' => 'online',
-    //             'process_apply' => $processApplyFromDb,
-    //             'bidding_data' => $normalized,
-    //             'raw' => $res
-    //         ];
-    //     }
-
-
-    //     if (!empty($res['bidInvContractorOfflineDTO'])) {
-
-    //         $offline = $res['bidInvContractorOfflineDTO'];
-
-    //         return [
-    //             'type' => 'offline',
-    //             'process_apply' => $processApplyFromDb,
-    //             'file_id' => $offline['fileId'] ?? null,
-    //             'file_name' => $offline['fileName'] ?? null,
-    //             'decision_no' => $offline['decisionNo'] ?? null,
-    //             'decision_date' => $offline['decisionDate'] ?? null,
-    //             'other_files' => $this->safeJsonDecode($offline['listOtherFile'] ?? null),
-    //             'raw' => $res
-    //         ];
-    //     }
-
-    //     // ❗ Có response nhưng không đúng format
-    //     Log::warning("HSMT INVALID STRUCTURE", [
-    //         'tender_id' => $tenderId,
-    //         'process_apply' => $processApplyFromDb,
-    //         'keys' => array_keys($res)
-    //     ]);
-
-    //     Log::info("HSMT DEBUG", [
-    //         'bidaInvChapterConfList' => $res['bidaInvChapterConfList'] ?? null,
-    //         'bidoInvBiddingDTO' => $res['bidoInvBiddingDTO'] ?? null,
-    //         'bidInvContractorOfflineDTO' => $res['bidInvContractorOfflineDTO'] ?? null,
-    //     ]);
-
-    //     return [];
-    // }
+ 
 
     private function fetchHsmt(string $id, int $tenderId, ?string $processApplyFromDb = null): array
     {
@@ -223,70 +113,7 @@ class HsmtService
         }
     }
 
-    // private function saveHsmt(int $tenderId, array $data): void
-    // {
-    //     try {
-
-
-    //         if ($data['type'] === 'chapter') {
-
-    //             $rows = [];
-
-    //             foreach ($data['chapters'] as $item) {
-
-    //                 $rows[] = [
-    //                     'tender_id' => $tenderId,
-
-    //                     'api_id' => $item['api_id'],
-    //                     'code' => $item['code'],
-    //                     'pcode' => $item['pcode'],
-
-    //                     'name' => $item['name'],
-    //                     'name_en' => $item['name_en'],
-    //                     'description' => $item['description'],
-
-    //                     'order_index' => $item['order_index'],
-    //                     'level' => $item['level'],
-
-    //                     'is_webform' => $item['is_webform'],
-
-    //                     'bid_form' => $item['bid_form'],
-    //                     'bid_field' => $item['bid_field'],
-    //                     'bid_file' => $item['bid_file'],
-    //                     'contract_type' => $item['contract_type'],
-
-    //                     'process_type' => $item['process_type'],
-
-    //                     'raw' => json_encode($item['raw']),
-
-    //                     'created_at' => now(),
-    //                     'updated_at' => now(),
-    //                 ];
-    //             }
-
-    //             DB::table('tender_hsmt_chapters')->upsert(
-    //                 $rows,
-    //                 ['tender_id', 'code'],
-    //                 [
-    //                     'name',
-    //                     'name_en',
-    //                     'description',
-    //                     'order_index',
-    //                     'level',
-    //                     'pcode',
-    //                     'is_webform',
-    //                     'updated_at',
-    //                     'raw'
-    //                 ]
-    //             );
-    //         }
-    //     } catch (\Throwable $e) {
-    //         Log::error("SAVE HSMT CHAPTER FAILED", [
-    //             'tender_id' => $tenderId,
-    //             'error' => $e->getMessage()
-    //         ]);
-    //     }
-    // }
+  
 
     private function saveHsmt(int $tenderId, array $data): void
     {
@@ -295,8 +122,7 @@ class HsmtService
             $chapters = collect($data['chapters'] ?? []);
             $biddings = collect($data['biddings'] ?? []);
 
-            // 🔥 group bidding theo chapterCode
-            $biddingMap = $biddings->groupBy('chapterCode');
+            $biddingMap = $biddings->groupBy('chapter_code');
 
             $rows = [];
 
@@ -309,12 +135,12 @@ class HsmtService
                 // 👉 extract attachments
                 $attachments = $biddingItems->map(function ($bid) {
 
-                    $data = $this->safeJsonDecode($bid['formValue'] ?? null);
+                    $data = $bid['data'] ?? null;
 
                     if (!$data) return null;
 
                     return [
-                        'form_code' => $bid['formCode'] ?? null,
+                        'form_code' => $bid['form_code'] ?? null,
                         'files' => $data
                     ];
                 })->filter()->values();
@@ -322,31 +148,31 @@ class HsmtService
                 $rows[] = [
                     'tender_id' => $tenderId,
 
-                    'api_id' => $item['id'] ?? null,
+                    'api_id' => $item['api_id'] ?? null,
                     'code' => $item['code'] ?? null,
                     'pcode' => $item['pcode'] ?? null,
 
                     'name' => $item['name'] ?? null,
-                    'name_en' => $item['nameEn'] ?? null,
+                    'name_en' => $item['name_en'] ?? null,
                     'description' => $item['description'] ?? null,
 
-                    'order_index' => $item['orderIndex'] ?? 0,
-                    'level' => $item['lev'] ?? 0,
+                    'order_index' => $item['order_index'] ?? 0,
+                    'level' => $item['level'] ?? 0,
 
-                    'is_webform' => $item['isWebform'] ?? false,
+                    'is_webform' => $item['is_webform'] ?? false,
 
-                    'bid_form' => $item['bidForm'] ?? null,
-                    'bid_field' => $item['bidField'] ?? null,
-                    'bid_file' => $item['bidFile'] ?? null,
-                    'contract_type' => $item['contractType'] ?? null,
+                    'bid_form' => $item['bid_form'] ?? null,
+                    'bid_field' => $item['bid_field'] ?? null,
+                    'bid_file' => $item['bid_file'] ?? null,
+                    'contract_type' => $item['contract_type'] ?? null,
 
-                    'process_type' => $item['processType'] ?? null,
+                    'process_type' => $item['process_type'] ?? null,
 
-                    // 🔥 NEW
+                    
                     'attachments' => $attachments->isEmpty() ? null : json_encode($attachments),
                     'bidding_raw' => $biddingItems->isEmpty() ? null : json_encode($biddingItems),
 
-                    'raw' => json_encode($item),
+                    'raw' => json_encode($item['raw'] ?? $item),
 
                     'created_at' => now(),
                     'updated_at' => now(),

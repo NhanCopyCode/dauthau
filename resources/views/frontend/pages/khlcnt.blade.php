@@ -133,41 +133,104 @@
 
                                                  </div>
                                              </div>
-                                             {{-- <div class="d-flex flex-row align-items-start infomation__content">
-                                                 <div class="infomation__content__title">
-                                                     Thời gian thực hiện dự án
+
+                                             @php
+                                                 $planType = data_get($plan, 'planType');
+
+                                                 $pperiod = data_get($plan, 'pperiod');
+                                                 $pperiodUnit = data_get($plan, 'pperiodUnit');
+
+                                                 $periodText = match ($pperiodUnit) {
+                                                     1 => 'Năm',
+                                                     2 => 'Tháng',
+                                                     3 => 'Ngày',
+                                                     default => '',
+                                                 };
+
+                                                 // mapping nhóm dự án (fake theo thực tế phổ biến)
+                                                 $groupMap = [
+                                                     'NC' => 'Nhóm C',
+                                                     'NB' => 'Nhóm B',
+                                                     'NA' => 'Nhóm A',
+                                                 ];
+
+                                                 // mapping hình thức quản lý
+                                                 $formMap = [
+                                                     'TVQLDA' => 'Tư vấn quản lý dự án',
+                                                     'BQLDA' => 'Ban quản lý dự án',
+                                                 ];
+
+                                                 $pgroup =
+                                                     $groupMap[data_get($plan, 'pgroup')] ?? data_get($plan, 'pgroup');
+                                                 $pform =
+                                                     $formMap[data_get($plan, 'pform')] ?? data_get($plan, 'pform');
+                                             @endphp
+                                             @if (!in_array($planType, ['TX', 'KHAC']))
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Thời gian thực hiện dự án
+                                                     </div>
+                                                     <div>
+                                                         {{ $pperiod }} {{ $periodText }}
+                                                     </div>
                                                  </div>
-                                                 <div>
-                                                     3
-                                                     <span>Năm</span> <!----> <!---->
+                                             @endif
+
+                                             @if (!in_array($planType, ['TX', 'KHAC', 'DTMS']))
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Nhóm dự án
+                                                     </div>
+                                                     <div>
+                                                         {{ $pgroup }}
+                                                     </div>
                                                  </div>
-                                             </div>
-                                             <div class="d-flex flex-row align-items-start infomation__content">
-                                                 <div class="infomation__content__title">
-                                                     Nhóm dự án
+                                             @endif
+
+                                             @if (!in_array($planType, ['TX', 'KHAC', 'DTMS']))
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Hình thức quản lý dự án
+                                                     </div>
+                                                     <div>
+                                                         {{ $pform }}
+                                                     </div>
                                                  </div>
-                                                 <div><span> Nhóm C </span></div>
-                                             </div>
-                                             <div class="d-flex flex-row align-items-start infomation__content">
-                                                 <div class="infomation__content__title">
-                                                     Hình thức quản lý dự án
+                                             @endif
+
+                                             @if (!in_array($planType, ['TX', 'KHAC', 'DTMS']))
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Có sử dụng vốn ODA
+                                                     </div>
+                                                     <div>
+                                                         {{ data_get($plan, 'isOda') ? 'Có' : 'Không' }}
+                                                     </div>
                                                  </div>
-                                                 <div><span> Chủ đầu tư thuê tư vấn quản lý dự án </span></div>
-                                             </div>
-                                             <div class="d-flex flex-row align-items-start infomation__content">
-                                                 <div class="infomation__content__title">
-                                                     Có sử dụng vốn ODA
+                                             @endif
+
+                                             @if ($planType === 'DTMS')
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Nguồn vốn dự án
+                                                     </div>
+                                                     <div>
+                                                         {{ data_get($plan, 'investmentFunds') }}
+                                                     </div>
                                                  </div>
-                                                 <div><!----> <span>Không</span></div>
-                                             </div> <!---->
-                                             <div class="d-flex flex-row align-items-start infomation__content">
-                                                 <div class="infomation__content__title">
-                                                     Địa điểm thực hiện
+                                             @endif
+
+                                             @if (!in_array($planType, ['TX', 'KHAC']))
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Địa điểm thực hiện
+                                                     </div>
+                                                     <div>
+                                                         {{ data_get($plan, 'location') }}
+                                                     </div>
                                                  </div>
-                                                 <div>
-                                                     Tỉnh An Giang
-                                                 </div>
-                                             </div> --}}
+                                             @endif
+
                                          </div>
                                      </div>
                                      <div class="card border--none">
@@ -181,12 +244,21 @@
                                                  <div><span>{{ number_format(data_get($plan, 'investTotal'), 0, ',', '.') }}
                                                          VND</span> <!----></div>
                                              </div> <!----> <!---->
-                                             {{-- <div class="d-flex flex-row align-items-start infomation__content">
-                                                 <div class="infomation__content__title">
-                                                     Nguồn vốn đầu tư
+                                             @php
+                                                 $planType = data_get($plan, 'planType');
+                                                 $isOda = data_get($plan, 'isOda');
+                                             @endphp
+
+                                             @if (!in_array($planType, ['TX', 'KHAC', 'DTMS']))
+                                                 <div class="d-flex flex-row align-items-start infomation__content">
+                                                     <div class="infomation__content__title">
+                                                         Nguồn vốn đầu tư
+                                                     </div>
+                                                     <div>
+                                                         {{ $isOda ? 'Vốn ODA' : 'Không sử dụng vốn ODA' }}
+                                                     </div>
                                                  </div>
-                                                 <div><!----> <span>Không sử dụng vốn ODA</span></div>
-                                             </div>  --}}
+                                             @endif
                                              <div class="d-flex flex-row align-items-start infomation__content">
                                                  <div class="infomation__content__title">
                                                      Số tiền bằng chữ
@@ -246,7 +318,8 @@
                                              Danh sách gói thầu
                                          </div>
                                          <div class="card-body item-table" style="padding: 0px !important;"><!---->
-                                             <div class="table-wrapper max-w-full md:max-w-[972px]" style=" margin-top: 20px; overflow-x: scroll;">
+                                             <div class="table-wrapper max-w-full md:max-w-[972px]"
+                                                 style=" margin-top: 20px; overflow-x: scroll;">
                                                  <table id="table-pack" class="table table-expand"
                                                      style="overflow-x: scroll;">
                                                      <thead class="thead">
@@ -255,7 +328,8 @@
                                                              <th rowspan="2" style="width:150px">Tên chủ đầu tư</th>
                                                              <th colspan="2" style="width:250px">Tên gói thầu</th>
                                                              <th rowspan="2">Lĩnh vực</th>
-                                                             <th rowspan="2" style="width:170px">Giá gói thầu (VND)</th>
+                                                             <th rowspan="2" style="width:170px">Giá gói thầu (VND)
+                                                             </th>
                                                              <th rowspan="2">Chi tiết nguồn vốn</th>
                                                              <th rowspan="2">Hình thức LCNT</th>
                                                              <th rowspan="2">Phương thức LCNT</th>

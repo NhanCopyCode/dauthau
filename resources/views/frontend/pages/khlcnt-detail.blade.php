@@ -64,7 +64,7 @@
                                          <div class="card-body d-flex flex-column align-items-start infomation"></div>
                                      </div>
                                      <div class="card border--none">
-                                         <div class="card-body item-table m-0" style="padding: 0px !important;">
+                                         <div class="card-body item-table m-0" style="padding: 0px !important;max-height: 95vh;overflow-y: scroll; overflow-x: scroll;">
                                              <table class="table">
                                                  <thead class="thead">
                                                      <tr>

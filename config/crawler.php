@@ -11,5 +11,6 @@ return [
         'adb' => 'lcnt_tbmt_ttc_vk_adb',
         'reoffer_online' => 'online-reoffer/detail',
     ],
-    'hsmt' => "lcnt_tbmt_hsmt"
+    'hsmt' => "lcnt_tbmt_hsmt",
+    'node_url' => env('NODE_URL', 'http://localhost:3000'),
 ];
