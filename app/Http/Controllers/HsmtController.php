@@ -12,14 +12,13 @@ class HsmtController extends Controller
     {
         $url = $request->input('url');
         $param = $request->input('param');
+        $node_url = config('crawler.node_url');
 
-        // 🔒 validate
         if (!$url || !$param) {
             return response()->json(['error' => 'Invalid data'], 400);
         }
 
-        // 🚀 call NodeJS
-        $response = Http::timeout(120)->post('http://localhost:3000/download', [
+        $response = Http::timeout(120)->post($node_url . '/download', [
             'url' => $url,
             'param' => $param
         ]);

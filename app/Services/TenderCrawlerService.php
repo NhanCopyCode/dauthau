@@ -15,8 +15,6 @@ class TenderCrawlerService
         $baseUrl = config('crawler.base_url');
 
         $payload = $this->buildPayload($page, $pageSize);
-
-
         $response = Http::timeout(30)
             ->retry(3, 1000)
             ->withHeaders([

@@ -5,24 +5,47 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Tender;
 use App\Models\TenderDetail;
+use App\Models\TenderHntdt;
+use App\Models\TenderKn;
+use App\Models\TenderYclr;
 use App\Services\HsmtTreeService;
+use Illuminate\Support\Facades\DB;
 
 class FrontendController extends Controller
 {
+
     public function index(Request $request)
     {
         $query = Tender::query();
 
+        $query->select([
+            'id',
+            'name',
+            'egp_id',
+            'investor',
+            'province',
+            'bid_price',
+            'public_date',
+            'bid_close_date',
+            'notify_no',
+            'invest_field',
+            'bid_form'
+        ]);
+
         $search = trim($request->search);
 
         if (!empty($search)) {
+
             $normalized = mb_strtolower($search);
             $normalized = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $normalized);
             $normalized = preg_replace('/\s+/', ' ', $normalized);
 
             $keywords = array_filter(explode(' ', $normalized));
 
-            $query->where(function ($mainQuery) use ($keywords) {
+            $query->where(function ($mainQuery) use ($keywords, $normalized) {
+
+                $mainQuery->orWhere('name', 'LIKE', "%{$normalized}%");
+
                 foreach ($keywords as $keyword) {
                     if (strlen($keyword) < 2) continue;
 
@@ -41,8 +64,38 @@ class FrontendController extends Controller
                     });
                 }
             });
+
+            $scoreParts = [];
+
+            $scoreParts[] = "CASE WHEN name LIKE '%{$normalized}%' THEN 100 ELSE 0 END";
+
+            foreach ($keywords as $keyword) {
+                if (strlen($keyword) < 2) continue;
+
+                $like = "%{$keyword}%";
+
+                $scoreParts[] = "
+                CASE 
+                    WHEN name LIKE '{$like}' THEN 10
+                    WHEN bid_names LIKE '{$like}' THEN 6
+                    WHEN investor LIKE '{$like}' THEN 4
+                    WHEN province LIKE '{$like}' THEN 2
+                    ELSE 0
+                END
+            ";
+            }
+
+            $scoreSql = implode(' + ', $scoreParts);
+
+            // 🔥 QUAN TRỌNG: dùng addSelect
+            $query->addSelect(DB::raw("({$scoreSql}) as relevance_score"));
+
+            // 🔥 ưu tiên theo score
+            $query->orderByDesc('relevance_score');
         } else {
             $query->opening();
+
+            $query->orderBy('bid_close_date', 'asc');
         }
 
         if ($request->province) {
@@ -81,22 +134,6 @@ class FrontendController extends Controller
             $query->whereDate('bid_close_date', '<=', $request->close_to);
         }
 
-        $query->orderBy('bid_close_date', 'asc');
-
-        $query->select([
-            'id',
-            'name',
-            'egp_id',
-            'investor',
-            'province',
-            'bid_price',
-            'public_date',
-            'bid_close_date',
-            'notify_no',
-            'invest_field',
-            'bid_form'
-        ]);
-
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 20, 30, 50, 100]) ? $perPage : 10;
 
@@ -110,12 +147,11 @@ class FrontendController extends Controller
 
         return view('frontend.pages.home', compact('tenders', 'provinces'));
     }
-   
 
     public function show($egp_id, HsmtTreeService $treeService)
     {
         $tenderDetail = TenderDetail::with([
-            'tender.hsmtChapters' 
+            'tender.hsmtChapters'
         ])
             ->whereHas('tender', function ($query) use ($egp_id) {
                 $query->where('egp_id', $egp_id);
@@ -131,6 +167,79 @@ class FrontendController extends Controller
         );
         $notifyId = $tender->notify_id;
 
+        $yclrs = TenderYclr::where('notify_no', $tender->notify_no)
+            ->get()
+            ->map(function ($item) {
+
+                $data = is_array($item->data)
+                    ? $item->data
+                    : json_decode($item->data, true);
+
+                return [
+                    'version' => $data['version'] ?? $item->notify_version,
+
+                    'req_name' => $data['header']['req_name'] ?? null,
+                    'req_date' => $data['header']['req_date'] ?? null,
+
+                    'qa_groups' => $data['qa_groups'] ?? [],
+                ];
+            })
+            ->sortByDesc('req_date')
+            ->values();
+        // dd($yclrs);
+
+        $hntdts = TenderHntdt::where('notify_no', $tender->notify_no)
+            ->get()
+            ->map(function ($item) {
+
+                $data = is_array($item->data)
+                    ? $item->data
+                    : json_decode($item->data, true);
+
+                return [
+                    'version' => $data['version'] ?? null,
+                    'rows' => $data['rows'] ?? []
+                ];
+            });
+
+        // dd($hntdts);
+
+        $knData = TenderKn::where('notify_no', $tender->notify_no)
+            ->first();
+
+        $knData = $knData
+            ? collect(is_array($knData->data) ? $knData->data : json_decode($knData->data, true))
+            ->map(function ($versionBlock) {
+
+                return [
+                    'version' => $versionBlock['notifyVersion'] ?? '00',
+                    'items' => collect($versionBlock['biduPetitionContractorDTOList'] ?? [])
+                        ->map(function ($item) {
+
+                            $content = json_decode($item['content'] ?? '[]', true);
+                            $content = $content[0] ?? [];
+
+                            return [
+                                'req_no' => $item['reqNo'] ?? null,
+                                'req_name' => $item['reqName'] ?? null,
+
+                                'req_date' => $item['reqDate'] ?? null,
+                                'res_date' => $item['resDate'] ?? null,
+
+                                'req_content' => $content['reqContent'] ?? null,
+                                'res_content' => $content['resContent'] ?? null,
+
+                                'req_file_name' => $content['reqFileName'] ?? null,
+                                'req_file_id' => $content['reqFileId'] ?? null,
+
+                                'res_file_name' => $content['resFileName'] ?? null,
+                                'res_file_id' => $content['resFileId'] ?? null,
+                            ];
+                        })
+                ];
+            })
+            : collect();
+        // dd($knData);
 
         return view('frontend.pages.tender-detail', [
             'tenderDetail' => $tenderDetail,
@@ -140,6 +249,9 @@ class FrontendController extends Controller
             'hasCgtt' => in_array($tenderDetail->bid_form, ['CGTTRG', 'CGTT']),
             'hasContract' => false,
             'notifyId' => $notifyId,
+            'yclrs' => $yclrs,
+            'hntdts' => $hntdts,
+            'knData' => $knData,
         ]);
     }
 }

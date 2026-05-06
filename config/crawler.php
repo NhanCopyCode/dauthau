@@ -13,4 +13,7 @@ return [
     ],
     'hsmt' => "lcnt_tbmt_hsmt",
     'node_url' => env('NODE_URL', 'http://localhost:3000'),
+    'yclr_url' => env('YCLR_URL'),
+    'hntdt_url' => env('HNTDT_URL'),
+    'kn_url' => env('KN_URL'),
 ];
