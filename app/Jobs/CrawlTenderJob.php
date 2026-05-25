@@ -2,114 +2,1065 @@
 
 namespace App\Jobs;
 
+use App\Models\CrawlTask;
+use App\Services\CrawlTracker;
 use App\Services\TenderCrawlerService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+
+
+// class CrawlTenderJob implements ShouldQueue
+// {
+//     use Queueable;
+
+//     public $tries = 5;
+//     public $timeout = 120;
+
+//     protected int $page;
+
+//     public function __construct(int $page)
+//     {
+//         $this->page = $page;
+//     }
+
+//     public function handle(TenderCrawlerService $service): void
+//     {
+//         $page = $this->page;
+
+//         $initLock = Cache::lock('crawl_init_lock', 10);
+
+//         try {
+
+//             if ($page === 1 && !Cache::has('crawl_started_at')) {
+
+//                 $initLock->block(3);
+
+//                 Cache::put('crawl_started_at', microtime(true));
+//                 Cache::put('crawl_total_items', 0);
+//                 Cache::put('crawl_total_pages', 0);
+
+//                 Log::info('============= CRAWL START =============');
+//             }
+//         } finally {
+
+//             optional($initLock)->release();
+//         }
+
+//         $lockKey = "crawl_page_lock:{$page}";
+//         $lock = Cache::lock($lockKey, 600);
+
+//         if (!$lock->get()) {
+
+//             Log::warning("Page {$page} is already processing.");
+
+//             return;
+//         }
+
+//         $pageStartedAt = microtime(true);
+
+//         try {
+
+//             Log::info("Crawling page {$page}");
+
+
+//             $data = $service->crawlPage($page);
+
+//             $items = $data['page']['content'] ?? [];
+
+
+//             if (empty($items)) {
+
+//                 $startedAt = Cache::get('crawl_started_at');
+
+//                 $duration = round(
+//                     microtime(true) - $startedAt,
+//                     2
+//                 );
+
+//                 $totalItems = Cache::get('crawl_total_items', 0);
+//                 $totalPages = Cache::get('crawl_total_pages', 0);
+
+//                 Log::info('============= CRAWL DONE =============');
+
+//                 Log::info('CRAWL SUMMARY', [
+
+//                     'duration_seconds' => $duration,
+
+//                     'total_pages' => $totalPages,
+
+//                     'total_items' => $totalItems,
+
+//                     'items_per_second' => $duration > 0
+//                         ? round($totalItems / $duration, 2)
+//                         : 0,
+//                 ]);
+
+//                 return;
+//             }
+
+//             $tenders = $service->saveItems($items);
+
+//             $itemCount = count($items);
+
+//             Cache::increment('crawl_total_items', $itemCount);
+
+//             Cache::increment('crawl_total_pages');
+
+
+//             $pageDuration = round(
+//                 microtime(true) - $pageStartedAt,
+//                 3
+//             );
+
+//             Log::info('PAGE DONE', [
+
+//                 'page' => $page,
+
+//                 'items' => $itemCount,
+
+//                 'time_seconds' => $pageDuration,
+
+//                 'items_per_second' => $pageDuration > 0
+//                     ? round($itemCount / $pageDuration, 2)
+//                     : 0,
+//             ]);
+
+
+
+//             // foreach ($tenders as $tender) {
+
+//             //     dispatch(
+//             //         new CrawlTenderDetailJob($tender->id)
+//             //     )->onQueue('detail');
+
+//             //     dispatch(
+//             //         new CrawlTenderSubResourceJob($tender->id, 'yclr')
+//             //     )->onQueue('sub');
+
+//             //     dispatch(
+//             //         new CrawlTenderSubResourceJob($tender->id, 'hntdt')
+//             //     )->onQueue('sub');
+
+//             //     dispatch(
+//             //         new CrawlTenderSubResourceJob($tender->id, 'kn')
+//             //     )->onQueue('sub');
+//             // }
+
+//             $tracker = app(CrawlTracker::class);
+
+//             foreach ($tenders as $tender) {
+
+//                 dispatch(
+//                     new CrawlTenderDetailJob($tender->id)
+//                 )->onQueue('detail');
+
+//                 $tracker->jobDispatched($task->id);
+
+//                 dispatch(
+//                     new CrawlTenderSubResourceJob($tender->id, 'yclr')
+//                 )->onQueue('sub');
+
+//                 $tracker->jobDispatched($task->id);
+
+//                 dispatch(
+//                     new CrawlTenderSubResourceJob($tender->id, 'hntdt')
+//                 )->onQueue('sub');
+
+//                 $tracker->jobDispatched($task->id);
+
+//                 dispatch(
+//                     new CrawlTenderSubResourceJob($tender->id, 'kn')
+//                 )->onQueue('sub');
+
+//                 $tracker->jobDispatched($task->id);
+//             }
+
+
+
+//             dispatch(
+//                 new self($page + 1)
+//             )->onQueue('default');
+
+//             $tracker->jobDispatched($task->id);
+//         } catch (\Throwable $e) {
+
+//             Log::error("Crawl page {$page} failed", [
+
+//                 'message' => $e->getMessage(),
+//             ]);
+
+//             throw $e;
+//         } finally {
+
+//             optional($lock)->release();
+//         }
+//     }
+// }
 
 class CrawlTenderJob implements ShouldQueue
 {
     use Queueable;
-
     public $tries = 5;
     public $timeout = 120;
+    public $backoff = [10, 30, 60];
 
-    protected $page;
+    public function __construct(
+        protected int $page,
+        protected int $taskId
+    ) {}
 
-    public function __construct($page)
-    {
-        $this->page = $page;
-    }
+    public function handle(
+        TenderCrawlerService $service
+    ): void {
 
+        $tracker = app(CrawlTracker::class);
 
-    public function handle(TenderCrawlerService $service)
-    {
+        $task = CrawlTask::findOrFail(
+            $this->taskId
+        );
+
         $page = $this->page;
 
-        Log::info("Crawling page: {$page}");
+        $initLock = Cache::lock(
+            "crawl_init_lock:task_{$this->taskId}",
+            10
+        );
 
-        if ($page === 1 && !Cache::has('crawl_start_time')) {
-            Cache::put('crawl_start_time', now());
-            Cache::put('crawl_total_items', 0);
-            Cache::put('crawl_total_pages', 0);
+        try {
 
-            Log::info("CRAWL START");
+            if (
+                $page === 0 &&
+                !Cache::has(
+                    "crawl_started_at:{$this->taskId}"
+                )
+            ) {
+
+                $initLock->block(3);
+
+                Cache::put(
+                    "crawl_started_at:{$this->taskId}",
+                    microtime(true)
+                );
+
+                Cache::put(
+                    "crawl_total_items:{$this->taskId}",
+                    0
+                );
+
+                Cache::put(
+                    "crawl_total_pages:{$this->taskId}",
+                    0
+                );
+
+                Log::info(
+                    '============= CRAWL START =============',
+                    [
+                        'task_id' => $this->taskId
+                    ]
+                );
+            }
+        } finally {
+
+            optional($initLock)->release();
         }
 
-        $lockKey = "crawl_page_{$page}";
-        $lock = Cache::lock($lockKey, 300);
+        $lockKey =
+            "crawl_page_lock:task_{$this->taskId}_page_{$page}";
+
+        $lock = Cache::lock(
+            $lockKey,
+            600
+        );
 
         if (!$lock->get()) {
-            Log::warning("Page {$page} is being processed. Skip.");
+
+            Log::warning(
+                "Page {$page} is already processing.",
+                [
+                    'task_id' => $this->taskId
+                ]
+            );
+
+            $tracker->jobFinished($task->id);
+
             return;
         }
 
-        $pageStart = microtime(true);
+        $pageStartedAt = microtime(true);
 
         try {
+
+            Log::info(
+                'CRAWL PAGE START',
+                [
+                    'task_id' => $task->id,
+                    'page' => $page,
+                    'type' => $task->type,
+                ]
+            );
+
             $data = $service->crawlPage($page);
-            $items = $data['page']['content'] ?? [];
+
+            $items =
+                $data['content']
+                ?? [];
+
+            $totalPages =
+                $data['total_pages']
+                ?? 0;
+
+            $totalElements =
+                $data['total_elements']
+                ?? 0;
+
+            if ($page === 0) {
+
+                $task->update([
+                    'total_pages' => $totalPages,
+                    'total_items' => $totalElements,
+                ]);
+            }
+            $isLastPage =
+                $page >= ($totalPages - 1);
+
+            Log::info(
+                'CRAWL API META',
+                [
+                    'task_id' => $task->id,
+                    'page' => $page,
+                    'total_pages' => $totalPages,
+                    'total_elements' => $totalElements,
+                    'current_items' => count($items),
+                ]
+            );
 
             if (empty($items)) {
 
-                $start = Cache::get('crawl_start_time');
-                $end = now();
+                Log::warning(
+                    'Empty items returned',
+                    [
+                        'task_id' => $task->id,
+                        'page' => $page,
+                    ]
+                );
 
-                $totalItems = Cache::get('crawl_total_items', 0);
-                $totalPages = Cache::get('crawl_total_pages', 0);
+                if ($isLastPage) {
 
-                $duration = $start ? $end->diffInSeconds($start) : 0;
+                    $tracker->markProducerDone($task->id);
 
-                Log::info("CRAWL DONE", [
-                    'start' => $start,
-                    'end' => $end,
-                    'duration_seconds' => $duration,
-                    'total_items' => $totalItems,
-                    'total_pages' => $totalPages,
-                    'items_per_second' => $duration > 0 ? round($totalItems / $duration, 2) : 0,
-                ]);
+                    $task->update([
+                        'status' => 'completed',
+                        'finished_at' => now(),
+                    ]);
+                }
+
+                $tracker->jobFinished($task->id);
 
                 return;
             }
 
-            $tenders = $service->saveItems($items);
+            $tenders = $service->saveItems(
+                $items
+            );
 
-            $count = count($items);
+            $itemCount = count($items);
 
-            Cache::increment('crawl_total_items', $count);
-            Cache::increment('crawl_total_pages');
+            DB::table('crawl_tasks')
+                ->where('id', $task->id)
+                ->update([
+                    'processed_pages' => DB::raw(
+                        'processed_pages + 1'
+                    ),
 
-            $pageEnd = microtime(true);
+                    'processed_items' => DB::raw(
+                        'processed_items + ' . (int) $itemCount
+                    ),
+                ]);
 
-            Log::info("PAGE DONE", [
-                'page' => $page,
-                'items' => $count,
-                'time_seconds' => round($pageEnd - $pageStart, 3),
-            ]);
+            Cache::increment(
+                "crawl_total_items:{$this->taskId}",
+                $itemCount
+            );
+
+            Cache::increment(
+                "crawl_total_pages:{$this->taskId}"
+            );
+
+            $pageDuration = round(
+                microtime(true) - $pageStartedAt,
+                3
+            );
+
+            Log::info(
+                'PAGE DONE',
+                [
+                    'task_id' => $task->id,
+                    'page' => $page,
+                    'items' => $itemCount,
+                    'time_seconds' => $pageDuration,
+                    'items_per_second' => $pageDuration > 0
+                        ? round(
+                            $itemCount / $pageDuration,
+                            2
+                        )
+                        : 0,
+                ]
+            );
 
             foreach ($tenders as $tender) {
 
-                dispatch(new CrawlTenderDetailJob($tender->id))
-                    ->onQueue('detail');
+                dispatch(
+                    new CrawlTenderDetailJob(
+                        $tender->id,
+                        $this->taskId
+                    )
+                )->onQueue('detail');
 
-                dispatch(new CrawlTenderSubResourceJob($tender->id, 'yclr'))
-                    ->onQueue('sub');
+                $tracker->jobDispatched($task->id);
 
-                dispatch(new CrawlTenderSubResourceJob($tender->id, 'hntdt'))
-                    ->onQueue('sub');
+                if (
+                    (int) $tender->num_petition > 0
+                ) {
 
-                dispatch(new CrawlTenderSubResourceJob($tender->id, 'kn'))
-                    ->onQueue('sub');
+                    dispatch(
+                        new CrawlTenderSubResourceJob(
+                            $tender->id,
+                            'kn',
+                            $this->taskId
+                        )
+                    )->onQueue('sub');
+
+                    $tracker->jobDispatched($task->id);
+                }
+
+                if (
+                    (int) $tender->num_clarify_req > 0
+                ) {
+
+                    dispatch(
+                        new CrawlTenderSubResourceJob(
+                            $tender->id,
+                            'yclr',
+                            $this->taskId
+                        )
+                    )->onQueue('sub');
+
+                    $tracker->jobDispatched($task->id);
+                }
+
+                dispatch(
+                    new CrawlTenderSubResourceJob(
+                        $tender->id,
+                        'hntdt',
+                        $this->taskId
+                    )
+                )->onQueue('sub');
+
+                $tracker->jobDispatched($task->id);
             }
 
-            dispatch(new self($page + 1))
-                ->onQueue('default');
+            if (!$isLastPage) {
+
+                dispatch(
+                    new self(
+                        page: $page + 1,
+                        taskId: $this->taskId
+                    )
+                )->onQueue('crawl');
+
+                $tracker->jobDispatched($task->id);
+            }
+
+            if ($isLastPage) {
+
+                Log::info(
+                    'CRAWL FINISHED',
+                    [
+                        'task_id' => $task->id,
+                        'page' => $page,
+                        'total_pages' => $totalPages,
+                        'total_elements' => $totalElements,
+                    ]
+                );
+
+                $tracker->markProducerDone($task->id);
+            }
+
+            $tracker->jobFinished($task->id);
         } catch (\Throwable $e) {
-            Log::error("Error page {$page}: " . $e->getMessage());
+
+            Log::error(
+                "Crawl page {$page} failed",
+                [
+                    'task_id' => $this->taskId,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]
+            );
+
+            $task->update([
+                'status' => 'failed',
+                'error' => $e->getMessage(),
+            ]);
+
             throw $e;
         } finally {
+
             optional($lock)->release();
         }
     }
+    public function failed(
+        \Throwable $e
+    ): void {
+
+        CrawlTask::where(
+            'id',
+            $this->taskId
+        )->update([
+
+            'status' => 'failed',
+
+            'error' => $e->getMessage(),
+        ]);
+
+        app(CrawlTracker::class)
+            ->jobFinished(
+                $this->taskId
+            );
+
+        Log::error(
+            'CrawlTenderJob permanently failed',
+            [
+
+                'task_id' => $this->taskId,
+
+                'page' => $this->page,
+
+                'error' => $e->getMessage(),
+            ]
+        );
+    }
 }
+
+ // public function handle(TenderCrawlerService $service): void
+    // {
+    //     $tracker = app(CrawlTracker::class);
+
+    //     $task = CrawlTask::findOrFail(
+    //         $this->taskId
+    //     );
+
+    //     $page = $this->page;
+    //     $initLock = Cache::lock(
+    //         "crawl_init_lock:task_{$this->taskId}",
+    //         10
+    //     );
+    //     try {
+    //         if (
+    //             $page === 0 &&
+    //             !Cache::has(
+    //                 "crawl_started_at:{$this->taskId}"
+    //             )
+    //         ) {
+
+    //             $initLock->block(3);
+
+    //             Cache::put(
+    //                 "crawl_started_at:{$this->taskId}",
+    //                 microtime(true)
+    //             );
+
+    //             Cache::put(
+    //                 "crawl_total_items:{$this->taskId}",
+    //                 0
+    //             );
+
+    //             Cache::put(
+    //                 "crawl_total_pages:{$this->taskId}",
+    //                 0
+    //             );
+
+    //             Log::info(
+    //                 '============= CRAWL START =============',
+    //                 [
+    //                     'task_id' => $this->taskId
+    //                 ]
+    //             );
+    //         }
+    //     } finally {
+    //         optional($initLock)->release();
+    //     }
+    //     $lockKey = "crawl_page_lock:task_{$this->taskId}_page_{$page}";
+
+    //     $lock = Cache::lock($lockKey, 600);
+    //     if (!$lock->get()) {
+    //         Log::warning("Page {$page} is already processing.");
+    //         $tracker->jobFinished($task->id);
+    //         return;
+    //     }
+    //     $pageStartedAt = microtime(true);
+    //     try {
+    //         Log::info('CRAWL PAGE START', [
+    //             'task_id' => $task->id,
+    //             'page' => $page,
+    //             'type' => $task->type,
+    //         ]);
+    //         $data = $service->crawlPage($page);
+
+    //         // $items = $data['page']['content'] ?? [];
+    //         $items = $data['content'];
+
+    //         $totalPages =
+    //             $data['total_pages'] ?? 0;
+
+    //         $isLastPage =
+    //             $page >= ($totalPages - 1);
+    //         // if (empty($items)) {
+    //         //     Log::info('CRAWL FINISHED', [
+    //         //         'task_id' => $task->id,
+    //         //         'page' => $page,
+    //         //     ]);
+    //         //     $task->update([
+    //         //         'status' => 'completed',
+    //         //         'finished_at' => now(),
+    //         //     ]);
+    //         //     $tracker->markProducerDone($task->id);
+    //         //     $tracker->jobFinished($task->id);
+    //         //     return;
+    //         // }
+
+    //         if (empty($items)) {
+
+    //             Log::warning(
+    //                 'Empty items returned',
+    //                 [
+    //                     'task_id' => $task->id,
+    //                     'page' => $page,
+    //                 ]
+    //             );
+
+    //             $tracker->jobFinished($task->id);
+
+    //             return;
+    //         }
+    //         $tenders = $service->saveItems($items);
+    //         $itemCount = count($items);
+    //         Cache::increment('crawl_total_items', $itemCount);
+    //         Cache::increment('crawl_total_pages');
+    //         $pageDuration = round(microtime(true) - $pageStartedAt, 3);
+    //         Log::info('PAGE DONE', [
+    //             'task_id' => $task->id,
+    //             'page' => $page,
+    //             'items' => $itemCount,
+    //             'time_seconds' => $pageDuration,
+    //             'items_per_second' => $pageDuration > 0 ? round($itemCount / $pageDuration, 2) : 0,
+    //         ]);
+    //         foreach ($tenders as $tender) {
+    //             dispatch(new CrawlTenderDetailJob($tender->id))->onQueue('detail');
+    //             $tracker->jobDispatched($task->id);
+
+    //             if ((int) $tender->num_petition > 0) {
+    //                 dispatch(
+    //                     (new CrawlTenderSubResourceJob(
+    //                         $tender->id,
+    //                         'kn'
+    //                     ))->onQueue('sub')
+    //                 );
+    //                 $tracker->jobDispatched($task->id);
+    //             }
+    //             if ((int) $tender->num_clarify_req > 0) {
+    //                 dispatch(
+    //                     (new CrawlTenderSubResourceJob(
+    //                         $tender->id,
+    //                         'yclr'
+    //                     ))->onQueue('sub')
+    //                 );
+    //                 $tracker->jobDispatched($task->id);
+    //             }
+
+    //             dispatch(new CrawlTenderSubResourceJob($tender->id, 'hntdt'))->onQueue('sub');
+    //             $tracker->jobDispatched($task->id);
+
+
+    //         }
+
+    //         // dispatch(new self(
+    //         //     page: $page + 1,
+    //         //     taskId: $this->taskId
+    //         // ))->onQueue('crawl');
+    //         if (!$isLastPage) {
+
+    //             dispatch(
+    //                 new self(
+    //                     page: $page + 1,
+    //                     taskId: $this->taskId
+    //                 )
+    //             )->onQueue('crawl');
+
+    //             $tracker->jobDispatched($task->id);
+    //         }
+
+    //         $tracker->jobDispatched($task->id);
+    //         $tracker->jobFinished($task->id);
+    //     } catch (\Throwable $e) {
+    //         Log::error("Crawl page {$page} failed", ['task_id' => $this->taskId, 'message' => $e->getMessage(),]);
+
+
+    //         $task->update([
+
+    //             'status' => 'failed',
+
+    //             'error' => $e->getMessage(),
+    //         ]);
+    //         throw $e;
+    //     } finally {
+    //         optional($lock)->release();
+    //     }
+    // }
+
+    // public function handle(
+    //     TenderCrawlerService $service
+    // ): void {
+
+    //     $tracker = app(
+    //         CrawlTracker::class
+    //     );
+
+    //     $task = CrawlTask::findOrFail(
+    //         $this->taskId
+    //     );
+
+    //     $page = $this->page;
+
+    //     $initLock = Cache::lock(
+    //         "crawl_init_lock:task_{$this->taskId}",
+    //         10
+    //     );
+
+    //     try {
+
+    //         if (
+    //             $page === 0 &&
+    //             !Cache::has(
+    //                 "crawl_started_at:{$this->taskId}"
+    //             )
+    //         ) {
+
+    //             $initLock->block(3);
+
+    //             Cache::put(
+    //                 "crawl_started_at:{$this->taskId}",
+    //                 microtime(true)
+    //             );
+
+    //             Cache::put(
+    //                 "crawl_total_items:{$this->taskId}",
+    //                 0
+    //             );
+
+    //             Cache::put(
+    //                 "crawl_total_pages:{$this->taskId}",
+    //                 0
+    //             );
+
+    //             Log::info(
+    //                 '============= CRAWL START =============',
+    //                 [
+    //                     'task_id'
+    //                     => $this->taskId
+    //                 ]
+    //             );
+    //         }
+    //     } finally {
+
+    //         optional($initLock)
+    //             ->release();
+    //     }
+
+    //     $lockKey =
+    //         "crawl_page_lock:task_{$this->taskId}_page_{$page}";
+
+    //     $lock = Cache::lock(
+    //         $lockKey,
+    //         600
+    //     );
+
+    //     if (!$lock->get()) {
+
+    //         Log::warning(
+    //             "Page {$page} is already processing.",
+    //             [
+    //                 'task_id'
+    //                 => $this->taskId
+    //             ]
+    //         );
+
+    //         $tracker->jobFinished($task->id);
+
+    //         return;
+    //     }
+
+    //     $pageStartedAt = microtime(true);
+
+    //     try {
+
+
+    //         Log::info(
+    //             'CRAWL PAGE START',
+    //             [
+
+    //                 'task_id'
+    //                 => $task->id,
+
+    //                 'page'
+    //                 => $page,
+
+    //                 'type'
+    //                 => $task->type,
+    //             ]
+    //         );
+
+    //         $data =
+    //             $service->crawlPage(
+    //                 $page
+    //             );
+
+    //         $items =
+    //             $data['content']
+    //             ?? [];
+
+    //         $totalPages =
+    //             $data['total_pages']
+    //             ?? 0;
+
+    //         $isLastPage =
+    //             $page >= (
+    //                 $totalPages - 1
+    //             );
+
+    //         if (empty($items)) {
+
+    //             Log::warning(
+    //                 'Empty items returned',
+    //                 [
+
+    //                     'task_id'
+    //                     => $task->id,
+
+    //                     'page'
+    //                     => $page,
+    //                 ]
+    //             );
+
+    //             $tracker
+    //                 ->jobFinished();
+
+    //             return;
+    //         }
+
+
+    //         $tenders =
+    //             $service->saveItems(
+    //                 $items
+    //             );
+
+    //         $itemCount =
+    //             count($items);
+
+    //         Cache::increment(
+    //             "crawl_total_items:{$this->taskId}",
+    //             $itemCount
+    //         );
+
+    //         Cache::increment(
+    //             "crawl_total_pages:{$this->taskId}"
+    //         );
+
+    //         $pageDuration =
+    //             round(
+    //                 microtime(true)
+    //                     - $pageStartedAt,
+    //                 3
+    //             );
+
+    //         Log::info(
+    //             'PAGE DONE',
+    //             [
+
+    //                 'task_id'
+    //                 => $task->id,
+
+    //                 'page'
+    //                 => $page,
+
+    //                 'items'
+    //                 => $itemCount,
+
+    //                 'time_seconds'
+    //                 => $pageDuration,
+
+    //                 'items_per_second'
+    //                 => $pageDuration > 0
+    //                     ? round(
+    //                         $itemCount /
+    //                             $pageDuration,
+    //                         2
+    //                     )
+    //                     : 0,
+    //             ]
+    //         );
+
+    //         foreach (
+    //             $tenders
+    //             as $tender
+    //         ) {
+
+    //             dispatch(
+    //                 new CrawlTenderDetailJob(
+    //                     $tender->id
+    //                 )
+    //             )->onQueue(
+    //                 'detail'
+    //             );
+
+    //             $tracker
+    //                 ->jobDispatched();
+
+    //             if (
+    //                 (int)
+    //                 $tender
+    //                     ->num_petition > 0
+    //             ) {
+
+    //                 dispatch(
+    //                     new CrawlTenderSubResourceJob(
+    //                         $tender->id,
+    //                         'kn'
+    //                     )
+    //                 )->onQueue(
+    //                     'sub'
+    //                 );
+
+    //                 $tracker
+    //                     ->jobDispatched();
+    //             }
+
+    //             if (
+    //                 (int)
+    //                 $tender
+    //                     ->num_clarify_req > 0
+    //             ) {
+
+    //                 dispatch(
+    //                     new CrawlTenderSubResourceJob(
+    //                         $tender->id,
+    //                         'yclr'
+    //                     )
+    //                 )->onQueue(
+    //                     'sub'
+    //                 );
+
+    //                 $tracker
+    //                     ->jobDispatched();
+    //             }
+
+    //             dispatch(
+    //                 new CrawlTenderSubResourceJob(
+    //                     $tender->id,
+    //                     'hntdt'
+    //                 )
+    //             )->onQueue(
+    //                 'sub'
+    //             );
+
+    //             $tracker
+    //                 ->jobDispatched();
+    //         }
+
+    //         if (!$isLastPage) {
+
+    //             dispatch(
+    //                 new self(
+    //                     page: $page + 1,
+
+    //                     taskId: $this->taskId
+    //                 )
+    //             )->onQueue(
+    //                 'crawl'
+    //             );
+
+    //             $tracker
+    //                 ->jobDispatched();
+    //         }
+
+    //         if (
+    //             $isLastPage
+    //         ) {
+
+    //             Log::info(
+    //                 'CRAWL FINISHED',
+    //                 [
+
+    //                     'task_id'
+    //                     => $task->id,
+
+    //                     'page'
+    //                     => $page,
+
+    //                     'total_pages'
+    //                     => $totalPages,
+    //                 ]
+    //             );
+
+    //             $tracker
+    //                 ->markProducerDone();
+
+    //             $task->update([
+
+    //                 'status'
+    //                 => 'completed',
+
+    //                 'finished_at'
+    //                 => now(),
+    //             ]);
+    //         }
+
+    //         $tracker
+    //             ->jobFinished();
+    //     } catch (
+    //         \Throwable $e
+    //     ) {
+
+    //         Log::error(
+    //             "Crawl page {$page} failed",
+    //             [
+
+    //                 'task_id'
+    //                 => $this->taskId,
+
+    //                 'message'
+    //                 => $e->getMessage(),
+    //             ]
+    //         );
+
+    //         $task->update([
+
+    //             'status'
+    //             => 'failed',
+
+    //             'error'
+    //             => $e->getMessage(),
+    //         ]);
+
+    //         throw $e;
+    //     } finally {
+
+    //         optional($lock)
+    //             ->release();
+    //     }
+    // }

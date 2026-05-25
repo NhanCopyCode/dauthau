@@ -9,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tender_details', function (Blueprint $table) {
-            $table->longText('capital_detail')->nullable()->change();
+            $table->longText('capital_detail')
+                ->nullable()
+                ->change();
         });
     }
 
     public function down(): void
     {
-        Schema::table('tender_details', function (Blueprint $table) {
-            $table->text('capital_detail')->change(); 
-        });
+      
     }
 };

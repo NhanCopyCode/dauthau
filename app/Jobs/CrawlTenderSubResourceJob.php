@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Tender;
+use App\Services\CrawlTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -16,41 +17,94 @@ class CrawlTenderSubResourceJob implements ShouldQueue
 
     protected int $tenderId;
     protected string $type;
-
-    public function __construct(int $tenderId, string $type)
-    {
+    protected int $taskId;
+    public function __construct(
+        int $tenderId,
+        string $type,
+        int $taskId
+    ) {
         $this->tenderId = $tenderId;
         $this->type = $type;
+        $this->taskId = $taskId;
     }
-
     public function handle()
     {
-        $tender = Tender::find($this->tenderId);
-
-        if (!$tender || !$tender->notify_no) {
-            return;
-        }
+        $tracker = app(CrawlTracker::class);
 
         try {
+
+            $tender = Tender::find($this->tenderId);
+
+            if (!$tender || !$tender->notify_no) {
+
+                Log::warning('Tender invalid', [
+                    'tender_id' => $this->tenderId,
+                    'type' => $this->type,
+                ]);
+
+                $tracker->jobFinished($this->taskId);
+
+                return;
+            }
+
             match ($this->type) {
-                'yclr' => app(\App\Services\YclrService::class)
-                    ->handle($tender),
 
-                'hntdt' => app(\App\Services\HntdtService::class)
-                    ->handle($tender),
+                'yclr' => app(
+                    \App\Services\YclrService::class
+                )->handle($tender),
 
-                'kn' => app(\App\Services\KnService::class)
-                    ->handle($tender),
+                'hntdt' => app(
+                    \App\Services\HntdtService::class
+                )->handle($tender),
+
+                'kn' => app(
+                    \App\Services\KnService::class
+                )->handle($tender),
 
                 default => null
             };
+
+            $tracker->jobFinished($this->taskId);
         } catch (\Throwable $e) {
-            Log::error("SubResource {$this->type} failed", [
-                'tender_id' => $this->tenderId,
-                'error' => $e->getMessage()
-            ]);
+
+
+            Log::error(
+                "SubResource {$this->type} failed",
+                [
+                    'tender_id' => $this->tenderId,
+                    'error' => $e->getMessage(),
+                ]
+            );
 
             throw $e;
         }
+    }
+
+    public function failed(
+        \Throwable $e
+    ): void {
+
+        app(CrawlTracker::class)
+            ->jobFinished(
+                $this->taskId
+            );
+
+        Log::critical(
+            "SubResource {$this->type} permanently failed",
+            [
+
+                'task_id' =>
+                $this->taskId,
+
+                'tender_id' =>
+                $this->tenderId,
+
+                'attempts' =>
+                $this->attempts(),
+
+                'error' =>
+                $e->getMessage(),
+            ]
+        );
     }
 }

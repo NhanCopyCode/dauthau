@@ -28,7 +28,7 @@
 
 
                  <div class="max-w-7xl mx-auto p-4 md:p-6">
-                     <div class="d-flex flex-row align-items-start content-body">
+                     <div class="d-flex flex-col-reverse md:flex-row align-items-start content-body">
                          <div class="d-flex flex-column align-items-start content-body__left">
                              <div class="d-flex flex-column align-items-start w-100">
                                  <div class="d-flex justify-content-between w-100">
@@ -378,24 +378,30 @@
                                                                          'DTRR' => 'Đấu thầu rộng rãi',
                                                                          'CDTRG' => 'Chỉ định thầu rút gọn',
                                                                          'CHCT' => 'Chào hàng cạnh tranh',
+                                                                         'CGTTRG' => 'Chào giá trực tuyến theo quy trình rút gọn',
                                                                          default => $item['bidForm'] ?? '—',
                                                                      } }}
                                                                  </td>
 
                                                                  <td>
-                                                                     {{ match ($item['bidMode'] ?? null) {
-                                                                         '1_MTHS' => 'Một giai đoạn một túi hồ sơ',
-                                                                         '2_MTHS' => 'Một giai đoạn hai túi hồ sơ',
-                                                                         default => '—',
-                                                                     } }}
+                                                                     {{ \App\Helpers\TenderHelper::formatBidMode($item) }}
                                                                  </td>
 
                                                                  <td>{{ $item['bidTime'] ?? '—' }}</td>
 
                                                                  <td>
-                                                                     @if (!empty($item['bidStartQuarter']))
-                                                                         Quý
-                                                                         {{ $item['bidStartQuarter'] }}/{{ $item['bidStartYear'] }}
+                                                                     @php
+                                                                         $quarter = $item['bidStartQuarter'] ?? null;
+                                                                         $month = $item['bidStartMonth'] ?? null;
+                                                                         $year = $item['bidStartYear'] ?? null;
+                                                                     @endphp
+
+                                                                     @if (!empty($month) && !empty($year))
+                                                                         Tháng {{ $month }}, {{ $year }}
+                                                                     @elseif (!empty($quarter) && $quarter != '0' && !empty($year))
+                                                                         Quý {{ $quarter }}/{{ $year }}
+                                                                     @elseif (!empty($year))
+                                                                         Năm {{ $year }}
                                                                      @else
                                                                          —
                                                                      @endif
@@ -425,15 +431,28 @@
 
                                                                  <td class="lf-th-content">
                                                                      @php
-                                                                         $link = !empty($item['linkNotifyInfo'])
-                                                                             ? json_decode(
+                                                                         $link = null;
+
+                                                                         if (!empty($item['linkNotifyInfo'])) {
+                                                                             $decoded = json_decode(
                                                                                  $item['linkNotifyInfo'],
                                                                                  true,
-                                                                             )
-                                                                             : null;
+                                                                             );
+
+                                                                             if (
+                                                                                 json_last_error() === JSON_ERROR_NONE
+                                                                             ) {
+                                                                                 $link = $decoded;
+                                                                             }
+                                                                         }
+
+                                                                         $hasTbmt =
+                                                                             !empty($link['notifyNo']) &&
+                                                                             !empty($link['notifyId']) &&
+                                                                             !empty($link['status']);
                                                                      @endphp
 
-                                                                     @if (!empty($link['notifyNo']))
+                                                                     @if ($hasTbmt)
                                                                          <span style="color:#40a9ff;cursor:pointer;">
                                                                              Đã có TBMT
                                                                          </span>
@@ -453,7 +472,7 @@
 
                              </div>
                          </div>
-                         <div class="content-body__right">
+                         <div class="content-body__right ">
                              <div class="detail__children-2">
                                  @php
                                      $publicDate = data_get($plan, 'publicDate');

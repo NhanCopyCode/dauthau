@@ -64,8 +64,9 @@
                                          <div class="card-body d-flex flex-column align-items-start infomation"></div>
                                      </div>
                                      <div class="card border--none">
-                                         <div class="card-body item-table m-0" style="padding: 0px !important;max-height: 95vh;overflow-y: scroll; overflow-x: scroll;">
-                                             <table class="table">
+                                         <div class="card-body item-table m-0"
+                                             style="padding: 0px !important;max-height: 95vh;overflow-y: scroll; overflow-x: scroll;">
+                                             {{-- <table class="table">
                                                  <thead class="thead">
                                                      <tr>
                                                          <th scope="col">STT</th>
@@ -136,20 +137,142 @@
                                                          </tr>
                                                      @endforelse
                                                  </tbody>
+                                             </table> --}}
+
+                                             <table class="table">
+                                                 <thead class="thead">
+                                                     <tr>
+                                                         <th scope="col">STT</th>
+
+                                                         <th scope="col" style="z-index: 0 !important;">
+                                                             Tên gói thầu
+                                                         </th>
+
+                                                         <th scope="col" style="width: 30%;">
+                                                             Dự toán gói thầu được duyệt sau khi phê duyệt KHLCNT
+                                                         </th>
+
+                                                         <th scope="col" style="width: 140px;">
+                                                             Giá gói thầu
+                                                         </th>
+
+                                                         <th scope="col">
+                                                             Số thông báo liên kết
+                                                         </th>
+                                                     </tr>
+                                                 </thead>
+
+                                                 <tbody>
+                                                     @forelse ($lots as $index => $lot)
+                                                         @php
+
+                                                             /*
+                |--------------------------------------------------------------------------
+                | Notify info
+                |--------------------------------------------------------------------------
+                */
+
+                                                             $notify = json_decode(
+                                                                 data_get($lot, 'linkNotifyInfo', '{}'),
+                                                                 true,
+                                                             );
+
+                                                             $notifyNo = data_get($notify, 'notifyNo');
+
+                                                             /*
+                |--------------------------------------------------------------------------
+                | Bid estimate price
+                |--------------------------------------------------------------------------
+                */
+
+                                                             $estimatePrice =
+                                                                 data_get($lot, 'lotEstimatePrice') ??
+                                                                 data_get($lot, 'bidEstimatePrice');
+
+                                                             /*
+                |--------------------------------------------------------------------------
+                | Bid price
+                |--------------------------------------------------------------------------
+                */
+
+                                                             $bidPrice =
+                                                                 data_get($lot, 'lotPrice') ??
+                                                                 data_get($lot, 'bidPrice');
+
+                                                         @endphp
+
+                                                         <tr>
+
+                                                             {{-- STT --}}
+                                                             <td class="lf-th-content">
+                                                                 {{ $index + 1 }}
+                                                             </td>
+
+
+                                                             {{-- Tên gói thầu --}}
+                                                             <td class="lf-th-content">
+                                                                 <a href="#" class="text-info"
+                                                                     style="color:#4D7AE5 !important;">
+                                                                     {{ data_get($lot, 'lotName') ?? (data_get($lot, 'bidName') ?? '-') }}
+                                                                 </a>
+                                                             </td>
+
+
+                                                             {{-- Dự toán --}}
+                                                             <td class="lf-th-content">
+
+                                                                 @if ($estimatePrice)
+                                                                     {{ number_format($estimatePrice, 0, ',', '.') }}
+                                                                     {{ data_get($lot, 'bidPriceUnit', 'VND') }}
+                                                                 @else
+                                                                     -
+                                                                 @endif
+
+                                                             </td>
+
+
+                                                             {{-- Giá gói thầu --}}
+                                                             <td class="lf-th-content">
+
+                                                                 @if ($bidPrice)
+                                                                     {{ number_format($bidPrice, 0, ',', '.') }}
+                                                                     {{ data_get($lot, 'bidPriceUnit', 'VND') }}
+                                                                 @else
+                                                                     -
+                                                                 @endif
+
+                                                             </td>
+
+
+                                                             {{-- Số TB liên kết --}}
+                                                             <td class="lf-th-content"
+                                                                 style="color:#40a9ff; cursor:pointer;">
+                                                                 {{ $notifyNo ?: '-' }}
+                                                             </td>
+
+                                                         </tr>
+
+                                                     @empty
+
+                                                         <tr>
+                                                             <td colspan="5" class="text-center">
+                                                                 Không có dữ liệu gói thầu
+                                                             </td>
+                                                         </tr>
+                                                     @endforelse
+                                                 </tbody>
                                              </table>
                                          </div>
                                      </div>
                                      @php
                                          $price = data_get($detail, 'bidPrice');
+
                                          $priceText = $price ? number_format($price, 0, ',', '.') . ' VND' : '-';
 
-                                         // JSON notify
-                                         $notify = json_decode(data_get($detail, 'linkNotifyInfo'), true);
+                                         $notify = json_decode(data_get($detail, 'linkNotifyInfo', '{}'), true);
 
-                                         // Location
                                          $location = collect($locations)->pluck('provName')->filter()->join(', ');
 
-                                         // Mapping
                                          $mapBidField = [
                                              'HH' => 'Hàng hóa',
                                              'XL' => 'Xây lắp',
@@ -164,17 +287,32 @@
 
                                          $mapBidMode = [
                                              '1_MTHS' => 'Một giai đoạn một túi hồ sơ',
+                                             '1_HTHS' => 'Một giai đoạn hai túi hồ sơ',
+                                             '2_GD' => 'Hai giai đoạn',
+                                             '2_THS' => 'Hai giai đoạn hai túi hồ sơ',
                                          ];
 
                                          $mapCtype = [
                                              'TG' => 'Trọn gói',
+                                             'DGCD' => 'Đơn giá cố định',
+                                             'DGTK' => 'Đơn giá điều chỉnh',
                                          ];
 
-                                         // helper
-                                         $field = $mapBidField[data_get($detail, 'bidField')] ?? 'Khác';
-                                         $form = $mapBidForm[data_get($detail, 'bidForm')] ?? '-';
-                                         $mode = $mapBidMode[data_get($detail, 'bidMode')] ?? '-';
-                                         $ctype = $mapCtype[data_get($detail, 'ctype')] ?? '-';
+                                         
+                                         $rawBidField = data_get($detail, 'bidField');
+                                         $rawBidForm = data_get($detail, 'bidForm');
+                                         $rawBidMode = data_get($detail, 'bidMode');
+                                         $rawCtype = data_get($detail, 'ctype');
+
+
+                                         $field = $mapBidField[$rawBidField] ?? ($rawBidField ?? '-');
+
+                                         $form = $mapBidForm[$rawBidForm] ?? ($rawBidForm ?? '-');
+
+                                         $mode = $mapBidMode[$rawBidMode] ?? ($rawBidMode ?? '-');
+
+                                         $ctype = $mapCtype[$rawCtype] ?? ($rawCtype ?? '-');
+
                                      @endphp
 
 

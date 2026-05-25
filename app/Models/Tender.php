@@ -127,12 +127,21 @@ class Tender extends Model
             ->orderBy('order_index');
     }
 
+    public function hsmt()
+    {
+        return $this->hasOne(TenderHsmt::class);
+    }
+
+
     public function getHasHsmtAttribute(): bool
     {
-        if ($this->relationLoaded('hsmtChapters')) {
-            return $this->hsmtChapters->isNotEmpty();
+     
+
+        if ($this->relationLoaded('hsmt')) {
+            return !is_null($this->hsmt);
         }
 
-        return $this->hsmtChapters()->exists();
+
+        return $this->hsmt()->exists();
     }
 }

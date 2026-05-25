@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [FrontendController::class, 'index'])->name('home');
 Route::get('/tenders', [FrontendController::class, 'index'])->name('tenders.index');
+Route::get('/show-tender-page', [FrontendController::class, 'showTenderPage'])->name('tenders.page');
 
 Route::post('/download-hsmt', [HsmtController::class, 'downloadHsmt']);
 

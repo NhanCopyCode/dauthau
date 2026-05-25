@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('tender_hsmt', function (Blueprint $table) {
             $table->id();
 
-            $table->unsignedBigInteger('tender_id')->index();
             
             $table->uuid('notify_id')->nullable()->index();
 

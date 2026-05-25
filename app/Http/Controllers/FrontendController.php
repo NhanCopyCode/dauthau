@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CrawlTask;
 use Illuminate\Http\Request;
 use App\Models\Tender;
 use App\Models\TenderDetail;
@@ -139,19 +140,21 @@ class FrontendController extends Controller
 
         $tenders = $query->paginate($perPage)->withQueryString();
 
+        $totalTenders  = $tenders->total();
+
         $provinces = Tender::query()
             ->select('province')
             ->distinct()
             ->orderBy('province')
             ->pluck('province');
 
-        return view('frontend.pages.home', compact('tenders', 'provinces'));
+        return view('frontend.pages.home', compact('tenders', 'totalTenders', 'provinces'));
     }
 
     public function show($egp_id, HsmtTreeService $treeService)
     {
         $tenderDetail = TenderDetail::with([
-            'tender.hsmtChapters'
+            'tender.hsmt'
         ])
             ->whereHas('tender', function ($query) use ($egp_id) {
                 $query->where('egp_id', $egp_id);
@@ -159,12 +162,74 @@ class FrontendController extends Controller
             ->firstOrFail();
 
         $tender = $tenderDetail->tender;
-        $isAgreeFrame = $tenderDetail->is_agree_frame ?? 0;
 
-        $tree = $treeService->build(
-            $tender->hsmtChapters,
-            $isAgreeFrame
-        );
+        $hsmt = $tender->hsmt;
+
+        $hsmtView = null;
+
+        if ($hsmt) {
+            if (!empty($hsmt->view_json)) {
+
+                $hsmtView = [
+                    'type' => 'online',
+                    'data' => $hsmt->view_json,
+                ];
+            } else {
+
+                $raw = $hsmt->raw_json ?? [];
+
+                $offline = $raw['bidInvContractorOfflineDTO'] ?? null;
+
+                if ($offline) {
+
+                    $otherFiles = json_decode(
+                        $offline['listOtherFile'] ?? '{}',
+                        true
+                    );
+
+                    $attachments = [];
+
+                    if (!empty($offline['fileId'])) {
+
+                        $attachments[] = [
+                            'label' => 'Hồ sơ mời thầu',
+                            'file_id' => $offline['fileId'],
+                            'file_name' => $offline['fileName'],
+                        ];
+                    }
+
+
+                    if (!empty($offline['briefFileId'])) {
+
+                        $attachments[] = [
+                            'label' => 'Tóm tắt nội dung sửa đổi',
+                            'file_id' => $offline['briefFileId'],
+                            'file_name' => $offline['briefFileName'],
+                        ];
+                    }
+                    for ($i = 1; $i <= 5; $i++) {
+
+                        $fileId = $otherFiles["otherFileId{$i}"] ?? null;
+                        $fileName = $otherFiles["otherFileName{$i}"] ?? null;
+
+                        if (!$fileId || !$fileName) {
+                            continue;
+                        }
+
+                        $attachments[] = [
+                            'label' => 'Nội dung đính kèm khác',
+                            'file_id' => $fileId,
+                            'file_name' => $fileName,
+                        ];
+                    }
+
+                    $hsmtView = [
+                        'type' => 'offline',
+                        'data' => $attachments,
+                    ];
+                }
+            }
+        }
         $notifyId = $tender->notify_id;
 
         $yclrs = TenderYclr::where('notify_no', $tender->notify_no)
@@ -186,7 +251,6 @@ class FrontendController extends Controller
             })
             ->sortByDesc('req_date')
             ->values();
-        // dd($yclrs);
 
         $hntdts = TenderHntdt::where('notify_no', $tender->notify_no)
             ->get()
@@ -202,7 +266,6 @@ class FrontendController extends Controller
                 ];
             });
 
-        // dd($hntdts);
 
         $knData = TenderKn::where('notify_no', $tender->notify_no)
             ->first();
@@ -239,12 +302,12 @@ class FrontendController extends Controller
                 ];
             })
             : collect();
-        // dd($knData);
+
 
         return view('frontend.pages.tender-detail', [
             'tenderDetail' => $tenderDetail,
             'tender' => $tender,
-            'tree' => $tree,
+            'hsmtView' => $hsmtView,
             'stepCode' => $tender->step_code,
             'hasCgtt' => in_array($tenderDetail->bid_form, ['CGTTRG', 'CGTT']),
             'hasContract' => false,
@@ -253,5 +316,43 @@ class FrontendController extends Controller
             'hntdts' => $hntdts,
             'knData' => $knData,
         ]);
+    }
+
+    public function showTenderPage()
+    {
+        $crawlTasks = CrawlTask::query()
+            ->latest('started_at')
+            ->limit(10)
+            ->get()
+            ->map(fn($task) => [
+                'id' => $task->id,
+                'type' => $task->type,
+                'status' => $task->status,
+                'from_date' => optional($task->from_date)->format('Y-m-d'),
+                'to_date' => optional($task->to_date)->format('Y-m-d'),
+                'started_at' => optional(
+                    $task->started_at
+                )->format('Y-m-d H:i:s'),
+
+                'finished_at' => optional(
+                    $task->finished_at
+                )->format('Y-m-d H:i:s'),
+
+                'processed_items' =>
+                $task->processed_items ?? 0,
+
+                'total_items' =>
+                $task->total_items ?? 0,
+
+                'error' => $task->error,
+            ]);
+
+        
+        return view(
+            'admin.components.dauthau.index',
+            [
+                'initialTasks' => $crawlTasks
+            ]
+        );
     }
 }
