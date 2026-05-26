@@ -26,6 +26,7 @@
             </div>
         </div>
         <p class="mt-3 text-2xl font-bold text-zinc-100 font-mono"><span x-text="formatNumber(todayItems)">0</span></p>
+        <p class="mt-1 text-xs text-zinc-400"><span x-text="currentProgress">--</span></p>
         <p class="mt-1 text-xs text-emerald-500"><span x-text="todayChangeText">&nbsp;</span></p>
     </div>
 
@@ -99,6 +100,8 @@
 
             todayChangeText: '',
 
+            currentProgress: '--',
+
             timer: null,
 
             init() {
@@ -138,6 +141,7 @@
                         .last_status ?? '').slice(1);
                     this.lastTime = data.last_time ?? '--';
                     this.runningJobs = data.running_jobs ?? 0;
+                    this.currentProgress = data.current_progress ?? '--';
 
                 } catch (error) {
                     console.error('Failed to fetch stats', error);

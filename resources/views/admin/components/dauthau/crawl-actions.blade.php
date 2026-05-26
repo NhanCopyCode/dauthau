@@ -28,7 +28,7 @@
                                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                       </template>
-                      <span x-text="crawlLoading.daily ? 'Đang xử lý...' : 'Crawl Now'"></span>
+                      <span x-text="crawlLoading.daily ? 'Đang xử lý...' : 'Run Crawl Now'"></span>
                   </button>
                   <button @click="startCrawl('full')" :disabled="crawlLoading.full"
                       class="flex-1 relative flex items-center justify-center gap-2 h-11 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 text-zinc-100 text-sm font-medium rounded-lg border border-zinc-700 transition-colors">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\RunCrawlTaskJob;
 use App\Models\CrawlTask;
+use App\Models\Tender;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -90,86 +91,147 @@ class CrawlController extends Controller
 
     public function history(Request $request)
     {
-        $tasks = CrawlTask::query()
+        $perPage = (int) $request->get('per_page', 10);
+        $allowed = [5, 10, 20, 50, 100];
+        if (!in_array($perPage, $allowed)) {
+            $perPage = 10;
+        }
+
+        $paginator = CrawlTask::query()
             ->latest('started_at')
-            ->limit(10)
-            ->get()
-            ->map(function ($task) {
+            ->paginate($perPage);
 
-                return [
-                    'id' => $task->id,
-                    'type' => $task->type,
-                    'status' => $task->status,
+        $items = collect($paginator->items())->map(function ($task) {
+            return [
+                'id' => $task->id,
+                'type' => $task->type,
+                'status' => $task->status,
 
-                    'from_date' => optional($task->from_date)->format('Y-m-d'),
-                    'to_date' => optional($task->to_date)->format('Y-m-d'),
-                    'started_at' => optional(
-                        $task->started_at
-                    )->format('Y-m-d H:i:s'),
+                'from_date' => optional($task->from_date)->format('Y-m-d'),
+                'to_date' => optional($task->to_date)->format('Y-m-d'),
+                'started_at' => optional($task->started_at)->format('Y-m-d H:i:s'),
 
-                    'finished_at' => optional(
-                        $task->finished_at
-                    )->format('Y-m-d H:i:s'),
+                'finished_at' => optional($task->finished_at)->format('Y-m-d H:i:s'),
 
-                    'processed_items' =>
-                    $task->processed_items ?? 0,
+                'processed_items' => $task->processed_items ?? 0,
 
-                    'total_items' =>
-                    $task->total_items ?? 0,
+                'total_items' => $task->total_items ?? 0,
 
-                    'error' => $task->error,
-                ];
-            });
+                'progress' => (
+                    ($task->processed_items ?? 0) . '/' . ($task->total_items ?? 0)
+                ),
+
+                'error' => $task->error,
+            ];
+        })->values();
 
         return response()->json([
-            'tasks' => $tasks
+            'tasks' => $items,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
         ]);
     }
 
+
     public function stats()
     {
-        // Tổng số item dự kiến từ API (total_items của tất cả task)
-        $totalItems = (int) CrawlTask::query()->sum('total_items');
+        $today = now('Asia/Ho_Chi_Minh')
+            ->startOfDay();
 
-        // Lấy múi giờ Việt Nam
-        $now = now()->setTimezone('Asia/Ho_Chi_Minh');
-        $today = $now->toDateString();
+        /**
+         * Tổng số gói thầu thực tế
+         */
+        $totalItems = Tender::query()
+            ->count();
 
-        // Tổng số item dự kiến của các task được bắt đầu vào hôm nay
-        $todayItems = (int) CrawlTask::whereDate('started_at', $today)->sum('total_items');
+        /**
+         * Gói thầu mới hôm nay
+         */
+        $todayItems = Tender::query()
+            ->where('created_at', '>=', $today)
+            ->count();
 
-        // Các task đã hoàn thành (có finished_at)
-        $completed = CrawlTask::whereNotNull('started_at')
+        /**
+         * Average crawl duration
+         */
+        $avgSeconds = CrawlTask::query()
+            ->whereNotNull('started_at')
             ->whereNotNull('finished_at')
-            ->get();
+            ->selectRaw(
+                'AVG(
+                TIMESTAMPDIFF(
+                    SECOND,
+                    started_at,
+                    finished_at
+                )
+            ) as avg_duration'
+            )
+            ->value('avg_duration');
 
-        $durations = $completed->map(function ($task) {
-            return Carbon::parse($task->started_at)->diffInSeconds(Carbon::parse($task->finished_at));
-        });
+        $avgFormatted = '--';
 
-        $avgSeconds = $durations->count() ? (int) round($durations->avg()) : 0;
-        $avgFormatted = $avgSeconds ? floor($avgSeconds / 60) . 'm ' . ($avgSeconds % 60) . 's' : '--';
+        if ($avgSeconds) {
+            $minutes = floor($avgSeconds / 60);
+            $seconds = $avgSeconds % 60;
 
-        // Task gần nhất
-        $last = CrawlTask::orderByDesc('started_at')->first();
-
-        $lastStatus = $last ? $last->status : '--';
-        $lastTimeFormatted = '--';
-        if ($last && $last->started_at) {
-            $lastTimeFormatted = Carbon::parse($last->started_at)
-                ->setTimezone('Asia/Ho_Chi_Minh')
-                ->format('H:i d/m/Y');
+            $avgFormatted =
+                "{$minutes}m {$seconds}s";
         }
 
-        $running = CrawlTask::where('status', 'running')->count();
+        /**
+         * Task gần nhất
+         */
+        $lastTask = CrawlTask::query()
+            ->latest('started_at')
+            ->first();
+
+        $lastStatus =
+            $lastTask?->status ?? '--';
+
+        $lastTime =
+            $lastTask?->started_at
+            ? $lastTask
+            ->started_at
+            ->timezone(
+                'Asia/Ho_Chi_Minh'
+            )
+            ->format('H:i d/m/Y')
+            : '--';
+
+        /**
+         * Running task
+         */
+        $runningJobs = CrawlTask::query()
+            ->where('status', 'running')
+            ->count();
+
+        $runningTask = CrawlTask::query()
+            ->where('status', 'running')
+            ->latest('started_at')
+            ->first();
+
+        $currentProgress = '--';
+
+        if ($runningTask) {
+            $processed = $runningTask->processed_items ?? 0;
+            $total = $runningTask->total_items ?? 0;
+            $currentProgress = "{$processed}/{$total}";
+        }
 
         return response()->json([
             'total_items' => $totalItems,
             'today_items' => $todayItems,
             'avg_duration' => $avgFormatted,
             'last_status' => $lastStatus,
-            'last_time' => $lastTimeFormatted,
-            'running_jobs' => $running,
+            'last_time' => $lastTime,
+            'running_jobs' => $runningJobs,
+            'current_progress' => $currentProgress,
         ]);
     }
 }

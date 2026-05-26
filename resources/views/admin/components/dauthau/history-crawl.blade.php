@@ -346,28 +346,37 @@
       <!-- Pagination -->
       <template x-if="tableState  === 'data'">
           <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between">
-              <p class="text-xs text-zinc-500">Hiển thị <span class="font-medium text-zinc-300">1-10</span> trong
-                  <span class="font-medium text-zinc-300">156</span> kết quả
+              <p class="text-xs text-zinc-500">Hiển thị
+                  <span class="font-medium text-zinc-300"
+                      x-text="( (currentPage-1)*perPage + 1 ) + '-' + Math.min(currentPage*perPage, total)"></span>
+                  trong <span class="font-medium text-zinc-300" x-text="total"></span> kết quả
               </p>
+
               <div class="flex items-center gap-1">
-                  <button
-                      class="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors disabled:opacity-50"
-                      disabled>
+                  <button @click="prevPage()" :disabled="currentPage === 1"
+                      class="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors disabled:opacity-50">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M15 19l-7-7 7-7" />
                       </svg>
                   </button>
-                  <button
-                      class="w-8 h-8 flex items-center justify-center text-zinc-100 bg-blue-600 rounded text-sm font-medium">1</button>
-                  <button
-                      class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded text-sm font-medium transition-colors">2</button>
-                  <button
-                      class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded text-sm font-medium transition-colors">3</button>
-                  <span class="w-8 h-8 flex items-center justify-center text-zinc-500 text-sm">...</span>
-                  <button
-                      class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded text-sm font-medium transition-colors">16</button>
-                  <button
+
+                  <template x-for="p in pages" :key="p">
+                      <button @click="goToPage(p)"
+                          :class="p === currentPage ?
+                              'w-8 h-8 flex items-center justify-center text-zinc-100 bg-blue-600 rounded text-sm font-medium' :
+                              'w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded text-sm font-medium transition-colors'"
+                          x-text="p"></button>
+                  </template>
+
+                  <span x-show="lastPage > pages[pages.length-1]"
+                      class="w-8 h-8 flex items-center justify-center text-zinc-500 text-sm">...</span>
+
+                  <button x-show="lastPage > pages[pages.length-1]" @click="goToPage(lastPage)"
+                      class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded text-sm font-medium transition-colors"
+                      x-text="lastPage"></button>
+
+                  <button @click="nextPage()" :disabled="currentPage === lastPage"
                       class="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -394,6 +403,12 @@
 
               polling: null,
               timer: null,
+
+              // pagination
+              currentPage: 1,
+              perPage: 10,
+              total: 0,
+              lastPage: 1,
 
               isFetching: false,
               now: Date.now(),
@@ -553,14 +568,16 @@
 
                       this.error = null;
 
-                      const response =
-                          await fetch(
-                              '/api/crawl/history', {
-                                  headers: {
-                                      Accept: 'application/json'
-                                  }
-                              }
-                          );
+                      const params = new URLSearchParams({
+                          page: this.currentPage,
+                          per_page: this.perPage,
+                      });
+
+                      const response = await fetch(`/api/crawl/history?${params.toString()}`, {
+                          headers: {
+                              Accept: 'application/json'
+                          },
+                      });
 
                       if (!response.ok) {
 
@@ -572,11 +589,14 @@
                       const data =
                           await response.json();
 
-                      this.tasks =
-                          Array.isArray(
-                              data.tasks
-                          ) ?
-                          data.tasks : [];
+                      this.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+
+                      if (data.pagination) {
+                          this.currentPage = data.pagination.current_page || 1;
+                          this.lastPage = data.pagination.last_page || 1;
+                          this.perPage = data.pagination.per_page || this.perPage;
+                          this.total = data.pagination.total || 0;
+                      }
 
                       this.handlePolling();
 
@@ -642,6 +662,32 @@
                           this.fetchHistory();
 
                       }, interval);
+              },
+
+              goToPage(page) {
+                  if (page < 1 || page > this.lastPage || page === this.currentPage) return;
+                  this.currentPage = page;
+                  this.fetchHistory(true);
+              },
+
+              prevPage() {
+                  if (this.currentPage > 1) {
+                      this.goToPage(this.currentPage - 1);
+                  }
+              },
+
+              nextPage() {
+                  if (this.currentPage < this.lastPage) {
+                      this.goToPage(this.currentPage + 1);
+                  }
+              },
+
+              get pages() {
+                  const pages = [];
+                  const start = Math.max(1, this.currentPage - 2);
+                  const end = Math.min(this.lastPage, start + 4);
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  return pages;
               },
 
               stopPolling() {
@@ -781,149 +827,3 @@
           }));
       });
   </script>
-
-  {{-- <tbody class="divide-y divide-zinc-800/50">
-                      @forelse($crawlTasks as $task)
-                          <tr class="hover:bg-zinc-800/30 transition-colors">
-
-                              <td class="px-4 py-3">
-                                  <span class="font-mono text-sm text-zinc-300">
-                                      #{{ $task->id }}
-                                  </span>
-                              </td>
-
-                              <td class="px-4 py-3">
-                                  <span
-                                      class="
-                                        inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
-                                            @if ($task->type === 'daily') bg-blue-500/10 text-blue-400
-                                            @elseif($task->type === 'full')
-                                                bg-violet-500/10 text-violet-400
-                                            @else
-                                                bg-amber-500/10 text-amber-400 @endif
-                                        ">
-                                      {{ ucfirst($task->type) }}
-                                  </span>
-                              </td>
-
-                              <td class="px-4 py-3">
-                                  <span class="text-sm text-zinc-300">
-                                      {{ optional($task->started_at)->format('d/m/Y H:i:s') }}
-                                  </span>
-                              </td>
-
-                              <td class="px-4 py-3">
-                                  <span class="text-sm text-zinc-400 font-mono">
-                                      {{ $task->duration }}
-                                  </span>
-                              </td>
-
-                              <td class="px-4 py-3">
-                                  <span
-                                      class="
-                                        inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium
-
-                                        @if ($task->status === 'completed') bg-emerald-500/10 text-emerald-500
-                                        @elseif($task->status === 'running')
-                                            bg-blue-500/10 text-blue-400
-                                        @elseif($task->status === 'failed')
-                                            bg-red-500/10 text-red-500
-                                        @else
-                                            bg-amber-500/10 text-amber-400 @endif
-                                            ">
-                                      <span
-                                          class="
-                        w-1.5 h-1.5 rounded-full
-
-                        @if ($task->status === 'completed') bg-emerald-500
-                        @elseif($task->status === 'running')
-                            bg-blue-400 animate-pulse
-                        @elseif($task->status === 'failed')
-                            bg-red-500
-                        @else
-                            bg-amber-400 @endif
-                    "></span>
-
-                                      {{ ucfirst($task->status) }}
-                                  </span>
-                              </td>
-
-                              <td class="px-4 py-3">
-                                  <span class="text-sm text-zinc-300">
-                                      {{ number_format($task->total_items) }}
-                                      items
-                                  </span>
-                              </td>
-
-                              <td class="px-4 py-3">
-                                  <div class="flex items-center justify-end gap-1">
-
-                                      <button
-                                          class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
-                                          title="Xem chi tiết">
-
-                                          <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                              viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M2.458 12C3.732 7.943 7.523 5 12 5
-                                c4.478 0 8.268 2.943 9.542 7
-                                -1.274 4.057-5.064 7-9.542 7
-                                -4.477 0-8.268-2.943-9.542-7z" />
-                                          </svg>
-                                      </button>
-
-                                      @if ($task->status === 'failed')
-                                          <button
-                                              class="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
-                                              title="Thử lại">
-
-                                              <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                  viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round"
-                                                      stroke-width="2" d="M4 4v5h.582m15.356 2A8.001
-                                    8.001 0 004.582 9m0 0H9m11
-                                    11v-5h-.581m0 0a8.003 8.003
-                                    0 01-15.357-2m15.357 2H15" />
-                                              </svg>
-                                          </button>
-                                      @endif
-
-                                      <button
-                                          class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
-                                          title="Xem logs">
-
-                                          <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                              viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M9 12h6m-6 4h6m2 5H7
-                                a2 2 0 01-2-2V5a2 2 0
-                                012-2h5.586a1 1 0 01.707.293
-                                l5.414 5.414a1 1 0 01.293.707V19
-                                a2 2 0 01-2 2z" />
-                                          </svg>
-                                      </button>
-
-                                  </div>
-                              </td>
-                          </tr>
-                      @empty
-                          <tr>
-                              <td colspan="7" class="py-16 text-center">
-                                  <div
-                                      class="w-16 h-16 mx-auto bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                      📭
-                                  </div>
-
-                                  <h3 class="text-sm font-medium text-zinc-300">
-                                      Chưa có dữ liệu
-                                  </h3>
-
-                                  <p class="text-xs text-zinc-500 mt-1">
-                                      Khởi chạy một tác vụ crawl để bắt đầu
-                                  </p>
-                              </td>
-                          </tr>
-                      @endforelse
-                  </tbody> --}}
