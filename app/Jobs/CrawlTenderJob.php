@@ -118,24 +118,21 @@ class CrawlTenderJob implements ShouldQueue
 
             $data = $service->crawlPage($page);
 
-            $items =
-                $data['content']
-                ?? [];
+            $items = $data['content'] ?? [];
+            $totalPages = $data['total_pages'] ?? 0;
+            $totalElements = $data['total_elements'] ?? 0;
 
-            $totalPages =
-                $data['total_pages']
-                ?? 0;
+            $currentApiTotal = (int) $task->api_total_items;
 
-            $totalElements =
-                $data['total_elements']
-                ?? 0;
-
-            if ($page === 0) {
-
-                $task->update([
-                    'total_pages' => $totalPages,
-                    'total_items' => $totalElements,
-                ]);
+            if ($totalElements > $currentApiTotal) {
+                CrawlTask::where('id', $task->id)
+                    ->update([
+                        'total_pages' => max(
+                            (int) $task->total_pages,
+                            $totalPages
+                        ),
+                        'api_total_items' => $totalElements,
+                    ]);
             }
             $isLastPage =
                 $page >= ($totalPages - 1);
@@ -224,56 +221,33 @@ class CrawlTenderJob implements ShouldQueue
                 ]
             );
 
+            $additional = 0;
             foreach ($tenders as $tender) {
-
-                dispatch(
-                    new CrawlTenderDetailJob(
-                        $tender->id,
-                        $this->taskId
-                    )
-                )->onQueue('detail');
-
+                dispatch(new CrawlTenderDetailJob($tender->id, $this->taskId))->onQueue('detail');
                 $tracker->jobDispatched($task->id);
+                $additional += 1; // detail
 
-                if (
-                    (int) $tender->num_petition > 0
-                ) {
-
-                    dispatch(
-                        new CrawlTenderSubResourceJob(
-                            $tender->id,
-                            'kn',
-                            $this->taskId
-                        )
-                    )->onQueue('sub');
-
+                if ((int) $tender->num_petition > 0) {
+                    dispatch(new CrawlTenderSubResourceJob($tender->id, 'kn', $this->taskId))->onQueue('sub');
                     $tracker->jobDispatched($task->id);
+                    $additional += 1;
                 }
 
-                if (
-                    (int) $tender->num_clarify_req > 0
-                ) {
-
-                    dispatch(
-                        new CrawlTenderSubResourceJob(
-                            $tender->id,
-                            'yclr',
-                            $this->taskId
-                        )
-                    )->onQueue('sub');
-
+                if ((int) $tender->num_clarify_req > 0) {
+                    dispatch(new CrawlTenderSubResourceJob($tender->id, 'yclr', $this->taskId))->onQueue('sub');
                     $tracker->jobDispatched($task->id);
+                    $additional += 1;
                 }
 
-                dispatch(
-                    new CrawlTenderSubResourceJob(
-                        $tender->id,
-                        'hntdt',
-                        $this->taskId
-                    )
-                )->onQueue('sub');
-
+                dispatch(new CrawlTenderSubResourceJob($tender->id, 'hntdt', $this->taskId))->onQueue('sub');
                 $tracker->jobDispatched($task->id);
+                $additional += 1; // hntdt
+            }
+
+            if ($additional > 0) {
+                DB::table('crawl_tasks')->where('id', $task->id)->update([
+                    'total_items' => DB::raw('COALESCE(total_items, 0) + ' . (int) $additional),
+                ]);
             }
 
             if (!$isLastPage) {
@@ -330,15 +304,13 @@ class CrawlTenderJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        CrawlTask::where(
-            'id',
-            $this->taskId
-        )->update([
-
-            'status' => 'failed',
-
-            'error' => $e->getMessage(),
-        ]);
+        $task = CrawlTask::find($this->taskId);
+        if ($task) {
+            $task->update([
+                'status' => 'failed',
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         app(CrawlTracker::class)
             ->jobFinished(
@@ -358,4 +330,3 @@ class CrawlTenderJob implements ShouldQueue
         );
     }
 }
-

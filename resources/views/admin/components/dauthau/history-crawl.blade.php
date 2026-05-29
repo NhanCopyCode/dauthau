@@ -10,7 +10,7 @@
               </div>
               <div class="flex items-center gap-3">
                   <!-- View State Toggle -->
-                  <div class="flex items-center gap-1 p-1 bg-zinc-800 rounded-lg">
+                  {{-- <div class="flex items-center gap-1 p-1 bg-zinc-800 rounded-lg">
                       <button @click="tableViewState = 'data'"
                           :class="tableViewState === 'data' ? 'bg-zinc-700 text-zinc-100' :
                               'text-zinc-400 hover:text-zinc-100'"
@@ -23,46 +23,74 @@
                           :class="tableViewState === 'empty' ? 'bg-zinc-700 text-zinc-100' :
                               'text-zinc-400 hover:text-zinc-100'"
                           class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors">Empty</button>
-                  </div>
-                  <!-- Search -->
-                  <div class="relative">
-                      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none"
-                          stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      <input type="text" x-model="tableSearch" placeholder="Tìm kiếm..."
-                          class="w-48 h-9 bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  </div>
-                  <!-- Filter -->
-                  <div class="relative" x-data="{ open: false }">
-                      <button @click="open = !open"
-                          class="flex items-center gap-2 h-9 px-3 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:text-zinc-100 transition-colors">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                          </svg>
-                          <span x-text="tableFilter === 'all' ? 'Tất cả' : tableFilter"></span>
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M19 9l-7 7-7-7" />
-                          </svg>
-                      </button>
-                      <div x-show="open" @click.away="open = false" x-transition
-                          class="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-10">
-                          <button @click="tableFilter = 'all'; open = false"
-                              class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Tất
-                              cả</button>
-                          <button @click="tableFilter = 'Completed'; open = false"
-                              class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Completed</button>
-                          <button @click="tableFilter = 'Running'; open = false"
-                              class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Running</button>
-                          <button @click="tableFilter = 'Failed'; open = false"
-                              class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Failed</button>
-                          <button @click="tableFilter = 'Pending'; open = false"
-                              class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Pending</button>
+                  </div> --}}
+                  <!-- Search + Filters (submit as GET) -->
+                  <form method="GET" action="{{ url()->current() }}" class="flex items-center gap-3">
+                      <!-- Grouped filters: Data range (Khoảng dữ liệu crawl) and Crawl time (Thời gian crawl) -->
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <!-- Data range filter -->
+                          <div class="flex flex-col text-left">
+                              <label class="text-xs text-zinc-400 mb-1">Khoảng dữ liệu crawl</label>
+                              <div class="flex items-center gap-2">
+                                  <input type="date" name="from_date" x-model="fromDate" x-init="fromDate = '{{ request('from_date') }}'"
+                                      value="{{ request('from_date') }}"
+                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                  <input type="date" name="to_date" x-model="toDate" x-init="toDate = '{{ request('to_date') }}'"
+                                      value="{{ request('to_date') }}"
+                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              </div>
+                          </div>
+
+                          <!-- Crawl run time filter -->
+                          <div class="flex flex-col text-left">
+                              <label class="text-xs text-zinc-400 mb-1">Thời gian crawl</label>
+                              <div class="flex items-center gap-2">
+                                  <input type="date" name="crawl_started_from" x-model="startedFrom"
+                                      x-init="startedFrom = '{{ request('crawl_started_from') }}'" value="{{ request('crawl_started_from') }}"
+                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                  <input type="date" name="crawl_started_to" x-model="startedTo"
+                                      x-init="startedTo = '{{ request('crawl_started_to') }}'" value="{{ request('crawl_started_to') }}"
+                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              </div>
+                          </div>
                       </div>
-                  </div>
+
+                      <!-- Actions -->
+                      <div class="flex items-center gap-2 ml-2">
+                          <button type="submit" class="h-9 px-3 bg-blue-600 text-white rounded-md text-sm">Tìm</button>
+                          <a href="{{ url()->current() }}"
+                              class="h-9 inline-flex items-center px-3 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md text-sm">Reset</a>
+                      </div>
+
+                      <!-- keep filter dropdown and bind to hidden input for form submit -->
+                      <div class="relative" x-data="{ open: false }">
+                          <input type="hidden" name="status" x-bind:value="tableFilter" x-init="tableFilter = '{{ request('status', 'all') }}'">
+                          <button type="button" @click="open = !open"
+                              class="flex items-center gap-2 h-9 px-3 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:text-zinc-100 transition-colors">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                              </svg>
+                              <span x-text="tableFilter === 'all' ? 'Tất cả' : tableFilter"></span>
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M19 9l-7 7-7-7" />
+                              </svg>
+                          </button>
+                          <div x-show="open" @click.away="open = false" x-transition
+                              class="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20">
+                              <button type="button" @click="tableFilter = 'all'; open = false"
+                                  class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Tất
+                                  cả</button>
+                              <button type="button" @click="tableFilter = 'running'; open = false"
+                                  class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Running</button>
+                              <button type="button" @click="tableFilter = 'completed'; open = false"
+                                  class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Completed</button>
+                              <button type="button" @click="tableFilter = 'failed'; open = false"
+                                  class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Failed</button>
+                          </div>
+                      </div>
+                  </form>
               </div>
           </div>
       </div>
@@ -133,7 +161,6 @@
 
                           <th class="text-left text-xs font-medium text-zinc-500 uppercase tracking-wide px-4 py-3">
                               Kết quả
-                          </th>
 
                           <th class="text-right text-xs font-medium text-zinc-500 uppercase tracking-wide px-4 py-3">
                               Thao tác
@@ -141,152 +168,116 @@
                       </tr>
                   </thead>
 
+                  <template x-for="task in filteredTasks" :key="task.id">
+                      <tr class="hover:bg-zinc-800/30 transition-colors">
 
-                  <tbody class="divide-y divide-zinc-800/50">
+                          <!-- ID -->
+                          <td class="px-4 py-3">
+                              <span class="font-mono text-sm text-zinc-300" x-text="'#' + task.id"></span>
+                          </td>
 
-                      <template x-for="task in filteredTasks" :key="task.id">
-                          <tr class="hover:bg-zinc-800/30 transition-colors">
-
-                              <!-- ID -->
-                              <td class="px-4 py-3">
-                                  <span class="font-mono text-sm text-zinc-300" x-text="'#' + task.id"></span>
-                              </td>
-
-                              <!-- TYPE -->
-                              <td class="px-4 py-3">
-                                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
-                                      :class="{
-                                          'bg-blue-500/10 text-blue-400': task.type === 'daily',
-                                      
-                                          'bg-violet-500/10 text-violet-400': task.type === 'full',
-                                      
-                                          'bg-amber-500/10 text-amber-400': task.type === 'range'
-                                      }"
-                                      x-text="
+                          <!-- TYPE -->
+                          <td class="px-4 py-3">
+                              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+                                  :class="{
+                                      'bg-blue-500/10 text-blue-400': task.type === 'daily',
+                                  
+                                      'bg-violet-500/10 text-violet-400': task.type === 'full',
+                                  
+                                      'bg-amber-500/10 text-amber-400': task.type === 'range'
+                                  }"
+                                  x-text="
                                         task.type.charAt(0)
                                             .toUpperCase()
                                         +
                                         task.type.slice(1)
                                     "></span>
-                              </td>
+                          </td>
 
-                              <!-- CRAWL RANGE -->
-                              <td class="px-4 py-3">
+                          <!-- CRAWL RANGE -->
+                          <td class="px-4 py-3">
 
-                                  <!-- FULL -->
-                                  <template x-if="task.type === 'full'">
-                                      <span class="text-sm text-zinc-500">-</span>
-                                  </template>
-
-                                  <!-- DAILY -->
-                                  <template
-                                      x-if="
-                                        task.type === 'daily'
-                                        && task.from_date
-                                    ">
-                                      <span class="text-sm text-zinc-300 font-mono"
-                                          x-text="
-                                            formatDate(
-                                                task.from_date
-                                            )
-                                        ">
-                                      </span>
-                                  </template>
-
-                                  <!-- RANGE -->
-                                  <template
-                                      x-if="
-                                        task.type === 'range'
-                                        && task.from_date
-                                        && task.to_date
-                                    ">
-                                      <span class="text-sm text-zinc-300 font-mono"
-                                          x-text="
-                                            formatDate(task.from_date)
-                                            +
-                                            ' → '
-                                            +
-                                            formatDate(task.to_date)
-                                        ">
-                                      </span>
-                                  </template>
-
-                              </td>
-
-                              <!-- START TIME -->
-                              <td class="px-4 py-3">
+                              <!-- FULL -->
+                              <template x-if="task.type === 'full'">
+                                  <span class="text-sm text-zinc-500">-</span>
+                              </template>
+                              <!-- DAILY -->
+                              <template x-if="task.type === 'daily'">
                                   <span class="text-sm text-zinc-300"
-                                      x-text="
-                        formatDate(
-                            task.started_at
-                        )
-                    "></span>
-                              </td>
+                                      x-text="task.from_date ? formatDate(task.from_date, false) : '-'"></span>
+                              </template>
 
-                              <!-- DURATION -->
-                              <td class="px-4 py-3">
-                                  <span class="text-sm text-zinc-400 font-mono"
-                                      x-text="
-                        formatDuration(task)
-                    "></span>
-                              </td>
+                              <!-- RANGE -->
+                              <template x-if="task.type === 'range'">
+                                  <span class="text-sm text-zinc-300"
+                                      x-text="(task.from_date ? formatDate(task.from_date, false) : '-') + ' → ' + (task.to_date ? formatDate(task.to_date, false) : '-')"></span>
+                              </template>
 
-                              <!-- STATUS -->
-                              <td class="px-4 py-3">
-                                  <span
-                                      class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
+                          </td>
+
+                          <!-- STARTED AT -->
+                          <td class="px-4 py-3">
+                              <span class="text-sm text-zinc-300 font-mono"
+                                  x-text="task.started_at ? formatDate(task.started_at, true) : '-'"></span>
+                          </td>
+
+                          <!-- DURATION -->
+                          <td class="px-4 py-3">
+                              <span class="text-sm text-zinc-400 font-mono"
+                                  x-text="
+                                formatDuration(task)
+                            "></span>
+                          </td>
+
+                          <!-- STATUS -->
+                          <td class="px-4 py-3">
+                              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
+                                  :class="{
+                                      'bg-emerald-500/10 text-emerald-500': task.status === 'completed',
+                                  
+                                      'bg-blue-500/10 text-blue-400': task.status === 'running',
+                                  
+                                      'bg-red-500/10 text-red-500': task.status === 'failed'
+                                  }">
+
+                                  <span class="w-1.5 h-1.5 rounded-full"
                                       :class="{
-                                          'bg-emerald-500/10 text-emerald-500': task.status === 'completed',
+                                          'bg-emerald-500': task.status === 'completed',
                                       
-                                          'bg-blue-500/10 text-blue-400': task.status === 'running',
+                                          'bg-blue-400 animate-pulse': task.status === 'running',
                                       
-                                          'bg-red-500/10 text-red-500': task.status === 'failed'
-                                      }">
+                                          'bg-red-500': task.status === 'failed'
+                                      }"></span>
 
-                                      <span class="w-1.5 h-1.5 rounded-full"
-                                          :class="{
-                                              'bg-emerald-500': task.status === 'completed',
-                                          
-                                              'bg-blue-400 animate-pulse': task.status === 'running',
-                                          
-                                              'bg-red-500': task.status === 'failed'
-                                          }"></span>
-
-                                      <span
-                                          x-text="
+                                  <span
+                                      x-text="
                             task.status.charAt(0)
                             .toUpperCase()
                             +
                             task.status.slice(1)
-                        "></span>
-                                  </span>
-                              </td>
+                            "></span>
+                                </span>
+                          </td>
 
-                              <!-- RESULT -->
-                              <td class="px-4 py-3">
-                                  <span class="text-sm text-zinc-300"
-                                      x-text="
-                        (task.total_items ?? 0)
-                        + ' items'
-                    "></span>
-                              </td>
+                          <!-- RESULT -->
+                          <td class="px-4 py-3">
+                              <span class="text-sm text-zinc-300" x-html="formatResult(task)"></span>
+                          </td>
 
-                              <!-- ACTION -->
-                              <td class="px-4 py-3">
-                                  <div class="flex items-center justify-end gap-1">
+                          <!-- ACTION -->
+                          <td class="px-4 py-3">
+                              <div class="flex items-center justify-end gap-1">
 
-                                      <!-- View -->
-                                      <button
-                                          class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
-                                          title="Xem chi tiết">
-                                          <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                              viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M15 12a3 3 0 11-6 0
+                                  <!-- View -->
+                                  <button
+                                      class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
+                                      @click="window.dispatchEvent(new CustomEvent('open-task-detail', { detail: task }))"
+                                      title="Xem chi tiết">
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
                                                     3 3 0 016 0z" />
 
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M2.458 12C3.732 7.943
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
                                                     7.523 5 12 5
                                                     c4.478 0 8.268 2.943
                                                     9.542 7
@@ -294,49 +285,47 @@
                                                     -9.542 7
                                                     -4.477 0-8.268-2.943
                                                     -9.542-7z" />
-                                          </svg>
-                                      </button>
+                                      </svg>
+                                  </button>
 
-                                      <!-- Retry -->
-                                      <template x-if="task.status === 'failed'">
-                                          <button
-                                              class="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
-                                              title="Thử lại">
-                                              <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                  viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round"
-                                                      stroke-width="2" d="M4 4v5h.582m15.356 2
+                                  <!-- Retry -->
+                                  <template x-if="task.status === 'failed'">
+                                      <button @click="confirmRetry(task)"
+                                          class="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
+                                          title="Thử lại">
+                                          <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                              viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M4 4v5h.582m15.356 2
                                                         A8.001 8.001 0 004.582 9
                                                         m0 0H9m11 11v-5h-.581
                                                         m0 0a8.003 8.003 0
                                                         01-15.357-2
                                                         m15.357 2H15" />
-                                              </svg>
-                                          </button>
-                                      </template>
+                                          </svg>
+                                      </button>
+                                  </template>
 
-                                      <!-- Logs -->
-                                      <button
-                                          class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
-                                          title="Xem logs">
-                                          <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                              viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M9 12h6m-6 4h6m2 5H7
+                                  <!-- Logs -->
+                                  <button
+                                      class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
+                                      @click="openLogs(task)" title="Xem logs">
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7
                                                     a2 2 0 01-2-2V5a2 2 0
                                                     012-2h5.586a1 1 0
                                                     01.707.293
                                                     l5.414 5.414a1 1 0
                                                     01.293.707V19
                                                     a2 2 0 01-2 2z" />
-                                          </svg>
-                                      </button>
+                                      </svg>
+                                  </button>
 
-                                  </div>
-                              </td>
+                              </div>
+                          </td>
 
-                          </tr>
-                      </template>
+                      </tr>
+                  </template>
 
                   </tbody>
               </table>
@@ -345,12 +334,12 @@
 
       <!-- Pagination -->
       <template x-if="tableState  === 'data'">
-          <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between">
-              <p class="text-xs text-zinc-500">Hiển thị
+          <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-end">
+              {{-- <p class="text-xs text-zinc-500">Hiển thị
                   <span class="font-medium text-zinc-300"
                       x-text="( (currentPage-1)*perPage + 1 ) + '-' + Math.min(currentPage*perPage, total)"></span>
                   trong <span class="font-medium text-zinc-300" x-text="total"></span> kết quả
-              </p>
+              </p> --}}
 
               <div class="flex items-center gap-1">
                   <button @click="prevPage()" :disabled="currentPage === 1"
@@ -385,445 +374,997 @@
               </div>
           </div>
       </template>
-  </div>
 
-  <script>
-      document.addEventListener('alpine:init', () => {
+      <!-- Logs Slide-over (moved inside the crawlHistory scope) -->
+      <!-- Retry Result Slide-over -->
+      <div x-show="showRetryModal" x-cloak class="fixed inset-0 z-50 flex" aria-hidden="true">
+          <div @click="closeRetryModal()" x-show="showRetryModal" x-transition.opacity
+              class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
 
-          Alpine.data('crawlHistory', () => ({
+          <div x-show="showRetryModal" x-transition:enter="transform transition"
+              x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+              x-transition:leave="transform transition" x-transition:leave-start="translate-y-0"
+              x-transition:leave-end="translate-y-full"
+              class="relative mx-auto my-auto w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-4">
 
-              tasks: @json($initialTasks ?? []),
+              <div class="flex items-center justify-between mb-2">
+                  <h3 class="text-sm font-semibold text-zinc-100">Retry Results</h3>
+                  <button @click="closeRetryModal()" class="text-zinc-400 hover:text-zinc-100">Close</button>
+              </div>
 
-              tableViewState: 'data',
-              tableSearch: '',
-              tableFilter: 'all',
+              <div class="text-sm text-zinc-300">
+                  <template x-if="retryResult">
+                      <div class="space-y-2">
+                          <div>Queued: <strong x-text="retryResult.queued || 0"></strong></div>
+                          <div>Skipped (already success): <strong x-text="retryResult.skipped_success || 0"></strong>
+                          </div>
+                          <div>Skipped (running): <strong x-text="retryResult.skipped_running || 0"></strong></div>
+                          <div>Failed to infer: <strong x-text="retryResult.failed_infer || 0"></strong></div>
 
-              loading: true,
-              error: null,
+                          <div class="mt-3">
+                              <div class="text-xs text-zinc-400 mb-1">Details</div>
+                              <div
+                                  class="max-h-48 overflow-auto bg-zinc-900 border border-zinc-800 p-2 rounded text-xs font-mono">
+                                  <pre x-text="JSON.stringify(retryResult.items || [], null, 2)"></pre>
+                              </div>
+                          </div>
+                      </div>
+                  </template>
+              </div>
 
-              polling: null,
-              timer: null,
+          </div>
+      </div>
+      <div x-show="showLogsModal" x-cloak class="fixed inset-0 z-50 flex" aria-hidden="true">
+          <!-- Overlay -->
+          <div @click="closeLogs()" x-show="showLogsModal" x-transition.opacity
+              class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
 
-              // pagination
-              currentPage: 1,
-              perPage: 10,
-              total: 0,
-              lastPage: 1,
+          <!-- Panel -->
+          <div x-show="showLogsModal" x-transition:enter="transform transition"
+              x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+              x-transition:leave="transform transition" x-transition:leave-start="translate-x-0"
+              x-transition:leave-end="translate-x-full"
+              class="relative ml-auto w-full max-w-[550px] h-full bg-zinc-900 border-l border-zinc-800 shadow-xl crawl-logs-panel flex flex-col">
 
-              isFetching: false,
-              now: Date.now(),
+              <div class="shrink-0 flex items-center justify-between p-4 border-b border-zinc-800">
+                  <div>
+                      <h3 class="text-sm font-semibold text-zinc-100">Logs phiên crawl <span class="font-mono">#<span
+                                  x-text="selectedTask ? selectedTask.id : ''"></span></span></h3>
+                      <div class="mt-1">
+                          <span class="inline-flex items-center gap-2 px-2 py-0.5 rounded text-xs font-medium"
+                              :class="{
+                                  'bg-emerald-500/10 text-emerald-500': selectedTask && selectedTask
+                                      .status === 'completed',
+                                  'bg-blue-500/10 text-blue-400': selectedTask && selectedTask.status === 'running',
+                                  'bg-red-500/10 text-red-500': selectedTask && selectedTask.status === 'failed'
+                              }">
+                              <span class="w-1.5 h-1.5 rounded-full"
+                                  :class="{
+                                      'bg-emerald-500': selectedTask && selectedTask.status === 'completed',
+                                      'bg-blue-400 animate-pulse': selectedTask && selectedTask.status === 'running',
+                                      'bg-red-500': selectedTask && selectedTask.status === 'failed'
+                                  }"></span>
+                              <span
+                                  x-text="selectedTask ? (selectedTask.status.charAt(0).toUpperCase() + selectedTask.status.slice(1)) : '-'"></span>
+                          </span>
+                      </div>
+                  </div>
 
-              lastHasRunningTask: null,
+                  <div class="flex items-center gap-2">
+                      <button @click="closeLogs()"
+                          class="p-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                      </button>
+                  </div>
+              </div>
+
+              <div class="shrink-0 px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                      <div class="text-sm text-zinc-300 font-medium">Logs</div>
+                      <div class="text-xs text-zinc-500">(mới nhất ở cuối)</div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                      <button @click="(logLifecycleFilter='all', logsPage=1, fetchLogs())"
+                          :class="logLifecycleFilter === 'all' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'"
+                          class="px-2 py-1 rounded">All</button>
+                      <button @click="(logLifecycleFilter='running', logsPage=1, fetchLogs())"
+                          :class="logLifecycleFilter === 'running' ? 'bg-blue-700 text-zinc-100' : 'text-zinc-400'"
+                          class="px-2 py-1 rounded">Running</button>
+                      <button @click="(logLifecycleFilter='failed', logsPage=1, fetchLogs())"
+                          :class="logLifecycleFilter === 'failed' ? 'bg-red-600 text-zinc-100' : 'text-zinc-400'"
+                          class="px-2 py-1 rounded">Failed</button>
+                  </div>
+              </div>
+
+              <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
+                  <!-- Loading skeleton -->
+                  <template x-if="logsLoading">
+                      <div class="space-y-3">
+                          <template x-for="i in 6" :key="i">
+                              <div class="flex items-start gap-3">
+                                  <div class="skeleton h-6 w-6 rounded"></div>
+                                  <div class="flex-1 space-y-2">
+                                      <div class="skeleton h-4 w-3/4 rounded"></div>
+                                      <div class="skeleton h-3 w-1/2 rounded"></div>
+                                  </div>
+                                  <div class="skeleton h-6 w-12 rounded"></div>
+                              </div>
+                          </template>
+                      </div>
+                  </template>
+
+                  <!-- Empty state -->
+                  <template x-if="!logsLoading && logs.length === 0">
+                      <div class="text-center py-12">
+                          <div
+                              class="w-12 h-12 mx-auto bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                              <svg class="w-6 h-6 text-zinc-600" fill="none" stroke="currentColor"
+                                  viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 12h6m-6 4h6" />
+                              </svg>
+                          </div>
+                          <div class="text-sm font-medium text-zinc-300">Chưa có logs</div>
+                          <div class="text-xs text-zinc-500 mt-1">Logs sẽ hiển thị khi có sự kiện</div>
+                      </div>
+                  </template>
+
+                  <!-- Logs list -->
+                  <template x-if="filteredLogs.length > 0">
+                      <div class="logs-list flex-1 overflow-auto space-y-3">
+                          <template x-for="log in filteredLogs" :key="log.id">
+                              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 font-mono text-xs">
+                                  <div class="flex items-start gap-3">
+                                      <div class="w-44 text-zinc-400 text-xs"> <span x-text="log.created_at"></span>
+                                      </div>
+                                      <div class="flex-1">
+                                          <div class="flex items-center gap-2">
+                                              <div class="text-zinc-100 text-sm truncate"
+                                                  x-text="(log.context && log.context.job_name) ? log.context.job_name : (log.queue ? log.queue : log.message)">
+                                              </div>
+
+                                              <div class="ml-2">
+                                                  <span
+                                                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                                      :class="{
+                                                          'bg-emerald-500/10 text-emerald-500': (log
+                                                              .derived_status || '') === 'success',
+                                                          'bg-blue-500/10 text-blue-400': (log.derived_status ||
+                                                              '') === 'running',
+                                                          'bg-red-500/10 text-red-400': (log.derived_status ||
+                                                              '') === 'failed'
+                                                      }"
+                                                      x-text="(log.event_type) ? log.event_type : ((log.derived_status || log.context && log.context.status) ? (log.derived_status || (log.context && log.context.status)).toUpperCase() : (log.level || '').toUpperCase())"></span>
+                                              </div>
+
+                                              <div class="ml-2 text-zinc-500 text-xs"
+                                                  x-text="log.context && log.context.execution_time_ms ? (log.context.execution_time_ms >= 1000 ? Math.round(log.context.execution_time_ms/1000) + 's' : log.context.execution_time_ms + 'ms') : ''">
+                                              </div>
+
+                                              <template x-if="log.context && log.context.error_type === 'timeout'">
+                                                  <div
+                                                      class="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded bg-amber-500 text-zinc-900">
+                                                      TIMEOUT</div>
+                                              </template>
+
+                                              <div class="ml-auto">
+                                                  <span
+                                                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                                      :class="{
+                                                          'bg-blue-500/10 text-blue-400': log.level === 'info',
+                                                          'bg-amber-500/10 text-amber-400': log
+                                                              .level === 'warning',
+                                                          'bg-red-500/10 text-red-400': log.level === 'error'
+                                                      }"
+                                                      x-text="log.level ? log.level.toUpperCase() : ''"></span>
+                                              </div>
+                                          </div>
+
+                                          <div class="mt-2 text-zinc-300 text-sm" x-text="log.message"></div>
+
+                                          <div class="mt-2">
+                                              <button @click="toggleContext(log.id)"
+                                                  class="text-xs text-zinc-400 hover:text-zinc-100">View
+                                                  details</button>
+                                              <template x-if="expandedContexts[log.id]">
+                                                  <div class="mt-2 space-y-2">
+                                                      <template x-if="log.context && log.context.stacktrace">
+                                                          <pre class="max-h-48 overflow-auto text-xs text-zinc-200 bg-zinc-900 border border-zinc-800 p-3 rounded font-mono"
+                                                              x-text="log.context.stacktrace"></pre>
+                                                      </template>
+                                                      <pre class="max-h-48 overflow-auto text-xs text-zinc-200 bg-zinc-900 border border-zinc-800 p-3 rounded font-mono"
+                                                          x-text="JSON.stringify(log.context ? (Object.assign({}, log.context, { message: undefined })) : {}, null, 2)"></pre>
+                                                  </div>
+                                              </template>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </template>
+                      </div>
+                  </template>
+
+              </div>
+
+              <!-- Logs pagination controls (compact, stable rendering) -->
+              <div class="shrink-0 px-4 py-3 border-t border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between sticky bottom-0 bg-zinc-900 z-10"
+                  x-show="logs.length > 0">
+                  <div class="flex items-center gap-2 mb-2 sm:mb-0">
+                      <div class="text-xs text-zinc-500">Hiển thị
+                          <span class="text-zinc-300" x-text="logsFrom"></span>-<span class="text-zinc-300"
+                              x-text="logsTo"></span>
+                          / <span class="text-zinc-300" x-text="logsTotal"></span> logs
+                      </div>
+
+                      <!-- Per-page selector -->
+                      <select @change="logsPerPage = parseInt($event.target.value); logsPage = 1; fetchLogs()"
+                          class="ml-3 h-7 bg-zinc-800 border border-zinc-700 rounded px-2 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                          <option value="25" :selected="logsPerPage === 25">25 / trang</option>
+                          <option value="50" :selected="logsPerPage === 50">50 / trang</option>
+                          <option value="100" :selected="logsPerPage === 100">100 / trang</option>
+                          <option value="200" :selected="logsPerPage === 200">200 / trang</option>
+                          <option value="500" :selected="logsPerPage === 500">500 / trang</option>
+                      </select>
+                  </div>
+
+                  <div class="flex items-center justify-end gap-1 sm:gap-2">
+                      <button @click="logsPrevPage()" :disabled="logsPage <= 1"
+                          class="w-16 h-8 flex items-center justify-center rounded text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                          ← Trước
+                      </button>
+
+                      <!-- Compact pages (use templates to avoid Alpine DOM mismatch) -->
+                      <div class="flex items-center gap-1 sm:gap-2 whitespace-nowrap">
+                          <template x-for="(p, idx) in logsPages()" :key="`${p.key}-${idx}`">
+                              <template x-if="p.isEllipsis">
+                                  <span class="px-2 text-xs text-zinc-500">...</span>
+                              </template>
+
+                              <template x-if="!p.isEllipsis">
+                                  <button @click="if (p.page !== logsPage) { logsPage = p.page; fetchLogs(); }"
+                                      :aria-current="p.page === logsPage ? 'true' : 'false'"
+                                      :class="p.page === logsPage ?
+                                          'w-8 h-8 flex items-center justify-center rounded text-sm font-medium text-white bg-blue-600' :
+                                          'w-8 h-8 flex items-center justify-center rounded text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors'"
+                                      x-text="p.page"></button>
+                              </template>
+                          </template>
+                      </div>
+
+                      <button @click="logsNextPage()" :disabled="logsPage >= logsLastPage"
+                          class="w-16 h-8 flex items-center justify-center rounded text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                          Sau →
+                      </button>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <script>
+          document.addEventListener('alpine:init', () => {
+
+              Alpine.data('crawlHistory', () => ({
+
+                  tasks: @json($initialTasks ?? []),
+
+                  tableViewState: 'data',
+                  tableSearch: '',
+                  tableFilter: 'all',
+                  // date range filter (YYYY-MM-DD strings)
+                  fromDate: null,
+                  toDate: null,
+
+                  loading: true,
+                  error: null,
+
+                  polling: null,
+                  timer: null,
+
+                  // pagination
+                  currentPage: 1,
+                  perPage: 10,
+                  total: 0,
+                  lastPage: 1,
+
+                  isFetching: false,
+                  now: Date.now(),
+
+                  lastHasRunningTask: null,
 
 
-              crawlStartedHandler: null,
+                  crawlStartedHandler: null,
 
-              init() {
-                  this.fetchHistory(true);
-                  this.crawlStartedHandler =
-                      () => {
+                  // Logs modal state
+                  showLogsModal: false,
+                  selectedTask: null,
+                  logs: [],
+                  logsLoading: false,
+                  logsPage: 1,
+                  logsPerPage: 200,
+                  logsLastPage: 1,
+                  logsTotal: 0,
+                  logsFrom: 0,
+                  logsTo: 0,
+                  logsSummary: null,
+                  logsInterval: null,
+                  expandedContexts: {},
+                  // ui filters
+                  logLevelFilter: 'all',
+                  logLifecycleFilter: 'all',
 
-                          console.log(
-                              'crawl started → refresh history'
-                          );
-                          this.fetchHistory(
-                              true
-                          );
-                      };
+                  // retry state
+                  retryInProgress: false,
+                  retryResult: null,
+                  showRetryModal: false,
 
-                  window.addEventListener(
-                      'crawl-started',
-                      this.crawlStartedHandler
-                  );
-                  this.timer =
-                      setInterval(() => {
-                          this.now =
-                              Date.now();
-                      }, 1000);
-              },
+                  init() {
+                      this.fetchHistory(true);
+                      this.crawlStartedHandler =
+                          () => {
 
-              destroy() {
-
-                  this.stopPolling();
-
-                  if (this.timer) {
-
-                      clearInterval(
-                          this.timer
-                      );
-
-                      this.timer =
-                          null;
-                  }
-
-                  if (
-                      this.crawlStartedHandler
-                  ) {
-
-                      window.removeEventListener(
-                          'crawl-started',
-                          this
-                          .crawlStartedHandler
-                      );
-                  }
-              },
-
-              get tableState() {
-
-                  if (this.loading) {
-                      return 'loading';
-                  }
-
-                  if (this.error) {
-                      return 'error';
-                  }
-
-                  if (
-                      this.filteredTasks
-                      .length === 0
-                  ) {
-                      return 'empty';
-                  }
-
-                  return 'data';
-              },
-
-              get filteredTasks() {
-
-                  return this.tasks.filter(
-                      task => {
-
-                          const keyword =
-                              this.tableSearch
-                              .trim()
-                              .toLowerCase();
-
-                          const searchFields = [
-                                  task.id
-                                  ?.toString(),
-
-                                  task.type,
-
-                                  task.status,
-
-                                  task
-                                  .processed_items
-                                  ?.toString()
-                              ]
-                              .filter(Boolean)
-                              .join(' ')
-                              .toLowerCase();
-
-                          const matchesSearch =
-                              keyword === '' ||
-
-                              searchFields.includes(
-                                  keyword
+                              console.log(
+                                  'crawl started → refresh history'
                               );
+                              this.fetchHistory(
+                                  true
+                              );
+                          };
 
-                          const matchesFilter =
-                              this
-                              .tableFilter ===
-                              'all' ||
+                      window.addEventListener(
+                          'crawl-started',
+                          this.crawlStartedHandler
+                      );
+                      this.timer =
+                          setInterval(() => {
+                              this.now =
+                                  Date.now();
+                          }, 1000);
+                  },
 
-                              task.status
-                              ?.toLowerCase() ===
-                              this
-                              .tableFilter
-                              .toLowerCase();
+                  destroy() {
 
-                          return (
-                              matchesSearch &&
-                              matchesFilter
+                      this.stopPolling();
+
+                      if (this.timer) {
+
+                          clearInterval(
+                              this.timer
                           );
+
+                          this.timer =
+                              null;
                       }
-                  );
-              },
-
-              async fetchHistory(
-                  force = false
-              ) {
-
-                  if (
-                      this.isFetching &&
-                      !force
-                  ) {
-                      return;
-                  }
-
-                  this.isFetching =
-                      true;
-
-                  try {
 
                       if (
-                          this.tasks
-                          .length === 0 &&
-                          !this.error
+                          this.crawlStartedHandler
                       ) {
 
-                          this.loading =
-                              true;
-                      }
-
-                      this.error = null;
-
-                      const params = new URLSearchParams({
-                          page: this.currentPage,
-                          per_page: this.perPage,
-                      });
-
-                      const response = await fetch(`/api/crawl/history?${params.toString()}`, {
-                          headers: {
-                              Accept: 'application/json'
-                          },
-                      });
-
-                      if (!response.ok) {
-
-                          throw new Error(
-                              `HTTP ${response.status}`
+                          window.removeEventListener(
+                              'crawl-started',
+                              this
+                              .crawlStartedHandler
                           );
                       }
+                  },
 
-                      const data =
-                          await response.json();
+                  get tableState() {
 
-                      this.tasks = Array.isArray(data.tasks) ? data.tasks : [];
-
-                      if (data.pagination) {
-                          this.currentPage = data.pagination.current_page || 1;
-                          this.lastPage = data.pagination.last_page || 1;
-                          this.perPage = data.pagination.per_page || this.perPage;
-                          this.total = data.pagination.total || 0;
+                      if (this.loading) {
+                          return 'loading';
                       }
 
-                      this.handlePolling();
+                      if (this.error) {
+                          return 'error';
+                      }
 
-                  } catch (error) {
+                      if (
+                          this.filteredTasks
+                          .length === 0
+                      ) {
+                          return 'empty';
+                      }
 
-                      console.error(
-                          'History fetch failed:',
-                          error
-                      );
+                      return 'data';
+                  },
 
-                      this.error =
-                          'Không thể tải lịch sử crawl';
+                  get filteredTasks() {
+                      // Server supplies filtered tasks via API; no client-side reductions
+                      return this.tasks || [];
+                  },
 
-                  } finally {
+                  async fetchHistory(
+                      force = false
+                  ) {
 
-                      this.loading =
-                          false;
+                      if (
+                          this.isFetching &&
+                          !force
+                      ) {
+                          return;
+                      }
 
                       this.isFetching =
-                          false;
-                  }
-              },
+                          true;
 
-              handlePolling() {
+                      try {
 
-                  const hasRunningTask =
-                      this.tasks.some(
-                          task =>
-                          task.status ===
-                          'running'
-                      );
-                  if (
-                      this
-                      .lastHasRunningTask ===
-                      hasRunningTask
-                  ) {
-                      return;
-                  }
+                          if (
+                              this.tasks
+                              .length === 0 &&
+                              !this.error
+                          ) {
 
-                  this.lastHasRunningTask =
-                      hasRunningTask;
+                              this.loading =
+                                  true;
+                          }
 
-                  this.startPolling();
-              },
+                          this.error = null;
 
-              startPolling() {
+                          // include current page URL query params (keyword/status/from_date/to_date)
+                          const params = new URLSearchParams(window.location.search);
+                          params.set('page', this.currentPage);
+                          params.set('per_page', this.perPage);
 
-                  this.stopPolling();
+                          const response = await fetch(`/api/crawl/history?${params.toString()}`, {
+                              headers: {
+                                  Accept: 'application/json'
+                              },
+                          });
 
-                  const interval =
-                      this
-                      .lastHasRunningTask ?
-                      2000 :
-                      10000;
+                          if (!response.ok) {
 
-                  console.log(
-                      `Polling every ${interval / 1000}s`
-                  );
+                              throw new Error(
+                                  `HTTP ${response.status}`
+                              );
+                          }
 
-                  this.polling =
-                      setInterval(() => {
+                          const data =
+                              await response.json();
 
-                          this.fetchHistory();
+                          this.tasks = Array.isArray(data.tasks) ? data.tasks : [];
 
-                      }, interval);
-              },
+                          if (data.pagination) {
+                              this.currentPage = data.pagination.current_page || 1;
+                              this.lastPage = data.pagination.last_page || 1;
+                              this.perPage = data.pagination.per_page || this.perPage;
+                              this.total = data.pagination.total || 0;
+                          }
 
-              goToPage(page) {
-                  if (page < 1 || page > this.lastPage || page === this.currentPage) return;
-                  this.currentPage = page;
-                  this.fetchHistory(true);
-              },
+                          this.handlePolling();
 
-              prevPage() {
-                  if (this.currentPage > 1) {
-                      this.goToPage(this.currentPage - 1);
-                  }
-              },
+                      } catch (error) {
 
-              nextPage() {
-                  if (this.currentPage < this.lastPage) {
-                      this.goToPage(this.currentPage + 1);
-                  }
-              },
+                          console.error(
+                              'History fetch failed:',
+                              error
+                          );
 
-              get pages() {
-                  const pages = [];
-                  const start = Math.max(1, this.currentPage - 2);
-                  const end = Math.min(this.lastPage, start + 4);
-                  for (let i = start; i <= end; i++) pages.push(i);
-                  return pages;
-              },
+                          this.error =
+                              'Không thể tải lịch sử crawl';
 
-              stopPolling() {
+                      } finally {
 
-                  if (this.polling) {
+                          this.loading =
+                              false;
 
-                      clearInterval(
-                          this.polling
+                          this.isFetching =
+                              false;
+                      }
+                  },
+
+                  handlePolling() {
+
+                      const hasRunningTask =
+                          this.tasks.some(
+                              task =>
+                              task.status ===
+                              'running'
+                          );
+                      if (
+                          this
+                          .lastHasRunningTask ===
+                          hasRunningTask
+                      ) {
+                          return;
+                      }
+
+                      this.lastHasRunningTask =
+                          hasRunningTask;
+
+                      this.startPolling();
+                  },
+
+                  startPolling() {
+
+                      this.stopPolling();
+
+                      const interval =
+                          this
+                          .lastHasRunningTask ?
+                          2000 :
+                          10000;
+
+                      console.log(
+                          `Polling every ${interval / 1000}s`
                       );
 
                       this.polling =
-                          null;
-                  }
-              },
+                          setInterval(() => {
 
-              parseDate(date) {
+                              this.fetchHistory();
 
-                  if (!date) {
-                      return null;
-                  }
+                          }, interval);
+                  },
 
-                  return new Date(
-                      date.replace(
-                          ' ',
-                          'T'
-                      )
-                  );
-              },
+                  goToPage(page) {
+                      if (page < 1 || page > this.lastPage || page === this.currentPage) return;
+                      this.currentPage = page;
+                      this.fetchHistory(true);
+                  },
 
-              formatDuration(task) {
+                  prevPage() {
+                      if (this.currentPage > 1) {
+                          this.goToPage(this.currentPage - 1);
+                      }
+                  },
 
-                  if (!task.started_at) {
-                      return '-';
-                  }
+                  nextPage() {
+                      if (this.currentPage < this.lastPage) {
+                          this.goToPage(this.currentPage + 1);
+                      }
+                  },
 
-                  const start =
-                      this.parseDate(
-                          task.started_at
-                      );
+                  get pages() {
+                      const pages = [];
+                      const start = Math.max(1, this.currentPage - 2);
+                      const end = Math.min(this.lastPage, start + 4);
+                      for (let i = start; i <= end; i++) pages.push(i);
+                      return pages;
+                  },
 
-                  const end =
-                      task.finished_at ?
+                  get filteredLogs() {
+                      if (!this.logs || this.logs.length === 0) return [];
+                      let items = this.logs;
 
-                      this.parseDate(
-                          task.finished_at
-                      ) :
+                      // lifecycle filter: only support all / running / failed (no success tab)
+                      if (this.logLifecycleFilter && this.logLifecycleFilter !== 'all') {
+                          const want = this.logLifecycleFilter.toLowerCase();
 
-                      new Date(
-                          this.now
-                      );
+                          const isRunning = (l) => {
+                              const ds = (l.derived_status || '').toString().trim().toLowerCase();
+                              if (ds === 'running') return true;
 
-                  if (!start || !end) {
-                      return '-';
-                  }
+                              const ctxStatus = l.context && l.context.status ? String(l.context
+                                  .status).toUpperCase() : '';
+                              if (ctxStatus && (ctxStatus.includes('START') || ctxStatus.includes(
+                                          'RUN') || ctxStatus.includes('PROCESS') || ctxStatus
+                                      .includes('BEGIN'))) return true;
 
-                  const seconds =
-                      Math.max(
-                          0,
-                          Math.floor(
-                              (end - start) /
-                              1000
+                              const et = (l.event_type || '').toString().toUpperCase();
+                              const msg = (l.message || '').toString().toUpperCase();
+                              return (et.includes('START') || et.includes('RUN') || et.includes(
+                                  'PROCESS') || et.includes('REQUEST') || msg.includes(
+                                  'START') || msg.includes('RUN') || msg.includes(
+                                  'PROCESS') || msg.includes('REQUEST') || msg.includes(
+                                  'RUNNING'));
+                          };
+
+                          const isFailed = (l) => {
+                              const ds = (l.derived_status || '').toString().trim().toLowerCase();
+                              if (ds === 'failed') return true;
+
+                              const level = (l.level || '').toString().toLowerCase();
+                              if (level === 'error') return true;
+
+                              const et = (l.event_type || '').toString().toUpperCase();
+                              const msg = (l.message || '').toString().toUpperCase();
+                              return (et.includes('FAILED') || et.includes('ERROR') || et
+                                  .includes('EXCEPTION') || et.includes('TIMEOUT') || et
+                                  .includes('PERMANENTLY FAILED') || et.includes(
+                                      'CRITICAL') || msg.includes('FAILED') || msg.includes(
+                                      'ERROR') || msg.includes('EXCEPTION') || msg.includes(
+                                      'TIMEOUT') || msg.includes('PERMANENTLY FAILED') || msg
+                                  .includes('CRITICAL'));
+                          };
+
+                          if (want === 'running') {
+                              items = items.filter(l => isRunning(l));
+                          } else if (want === 'failed') {
+                              items = items.filter(l => isFailed(l));
+                          }
+                      }
+
+                      // keep legacy level filter if set
+                      if (this.logLevelFilter && this.logLevelFilter !== 'all') {
+                          items = items.filter(l => (l.level || '').toLowerCase() === this
+                              .logLevelFilter.toLowerCase());
+                      }
+
+                      return items;
+                  },
+
+                  stopPolling() {
+
+                      if (this.polling) {
+
+                          clearInterval(
+                              this.polling
+                          );
+
+                          this.polling =
+                              null;
+                      }
+                  },
+
+                  // Logs fetching and modal
+                  async openLogs(task) {
+                      this.selectedTask = task;
+                      this.showLogsModal = true;
+
+                      // Reset pagination for the new task
+                      this.logsPage = 1;
+                      this.logsLastPage = 1;
+                      this.logsTotal = 0;
+                      this.logsFrom = 0;
+                      this.logsTo = 0;
+                      this.logsSummary = null;
+                      this.logLifecycleFilter = 'all';
+                      this.logLevelFilter = 'all';
+
+                      await this.fetchLogs();
+
+                      if (task.status === 'running') {
+                          this.startLogsPolling();
+                      }
+                  },
+
+                  closeLogs() {
+                      this.showLogsModal = false;
+                      this.selectedTask = null;
+                      this.logs = [];
+                      this.logsLoading = false;
+                      this.logsPage = 1;
+                      this.logsLastPage = 1;
+                      this.logsTotal = 0;
+                      this.logsFrom = 0;
+                      this.logsTo = 0;
+                      this.logsSummary = null;
+                      this.logLifecycleFilter = 'all';
+                      this.logLevelFilter = 'all';
+                      this.stopLogsPolling();
+                  },
+
+                  toggleContext(logId) {
+                      if (!logId) return;
+                      this.expandedContexts[logId] = !this.expandedContexts[logId];
+                  },
+
+                  async fetchLogs() {
+                      if (!this.selectedTask) return;
+                      this.logsLoading = true;
+                      try {
+                          const resp = await fetch(
+                              `/crawl-tasks/${this.selectedTask.id}/logs?page=${this.logsPage}&per_page=${this.logsPerPage}&lifecycle=${encodeURIComponent(this.logLifecycleFilter || 'all')}`, {
+                                  headers: {
+                                      Accept: 'application/json'
+                                  }
+                              });
+                          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                          const payload = await resp.json();
+
+                          // Accept backward-compatible shape
+                          this.logs = Array.isArray(payload.logs) ? payload.logs : (Array.isArray(
+                              payload.data) ? payload.data : []);
+
+                          // pagination meta
+                          if (payload.pagination) {
+                              this.logsPage = payload.pagination.current_page || this.logsPage;
+                              this.logsLastPage = payload.pagination.last_page || 1;
+                              this.logsPerPage = payload.pagination.per_page || this.logsPerPage;
+                              this.logsTotal = payload.pagination.total || 0;
+                              this.logsFrom = payload.pagination.from || 0;
+                              this.logsTo = payload.pagination.to || 0;
+                          } else {
+                              this.logsPage = 1;
+                              this.logsLastPage = 1;
+                              this.logsPerPage = this.logs.length;
+                              this.logsTotal = this.logs.length;
+                              this.logsFrom = this.logs.length ? 1 : 0;
+                              this.logsTo = this.logs.length;
+                          }
+
+                          this.logsSummary = payload.summary || null;
+
+                          // Stop polling if task finished
+                          if (this.selectedTask && this.selectedTask.status !== 'running') this
+                              .stopLogsPolling();
+
+                          // Auto-scroll to latest when running
+                          if (this.selectedTask && this.selectedTask.status === 'running') {
+                              setTimeout(() => {
+                                  const el = document.querySelector(
+                                      '.crawl-logs-panel .logs-list');
+                                  if (el) el.scrollTop = el.scrollHeight;
+                              }, 50);
+                          }
+                      } catch (err) {
+                          console.error('Fetch logs failed', err);
+                      } finally {
+                          this.logsLoading = false;
+                      }
+                  },
+
+                  async logsPrevPage() {
+                      if (this.logsPage > 1) {
+                          this.logsPage -= 1;
+                          await this.fetchLogs();
+                      }
+                  },
+
+                  async logsNextPage() {
+                      if (this.logsPage < this.logsLastPage) {
+                          this.logsPage += 1;
+                          await this.fetchLogs();
+                      }
+                  },
+
+                  logsPages() {
+                      const raw = [];
+                      const last = Math.max(1, parseInt(this.logsLastPage || 1, 10));
+                      const current = Math.max(1, Math.min(last, parseInt(this.logsPage || 1, 10)));
+
+                      const pushPage = (n) => raw.push({
+                          key: `p-${n}`,
+                          page: n,
+                          isEllipsis: false
+                      });
+                      const pushEll = (id) => raw.push({
+                          key: `e-${id}`,
+                          isEllipsis: true
+                      });
+
+                      // Always show first
+                      pushPage(1);
+
+                      // Left ellipsis when there's a gap between first and the window
+                      if (current > 3 && last > 4) pushEll('left');
+
+                      // Pages around current (ensure within 2..last-1)
+                      const start = Math.max(2, current - 1);
+                      const end = Math.min(last - 1, current + 1);
+                      for (let i = start; i <= end; i++) {
+                          if (i > 1 && i < last) pushPage(i);
+                      }
+
+                      // Right ellipsis
+                      if (current < last - 2 && last > 4) pushEll('right');
+
+                      // Always show last
+                      if (last > 1) pushPage(last);
+
+                      // Normalize: remove duplicate pages and consecutive ellipses
+                      const out = [];
+                      const seen = new Set();
+                      for (const item of raw) {
+                          if (item.isEllipsis) {
+                              if (out.length && out[out.length - 1].isEllipsis) continue;
+                              out.push(item);
+                          } else {
+                              if (seen.has(item.page)) continue;
+                              seen.add(item.page);
+                              out.push(item);
+                          }
+                      }
+
+                      return out;
+                  },
+
+                  async confirmRetry(task) {
+                      if (!confirm(`Thực hiện thử lại các job failed cho task #${task.id}?`)) return;
+                      await this.performRetry(task);
+                  },
+
+                  async performRetry(task) {
+                      this.retryInProgress = true;
+                      this.retryResult = null;
+                      try {
+                          const resp = await fetch(`/api/crawl/tasks/${task.id}/retry`, {
+                              method: 'POST',
+                              headers: {
+                                  'Accept': 'application/json',
+                                  'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({}),
+                          });
+
+                          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                          const payload = await resp.json();
+                          this.retryResult = payload;
+                          this.showRetryModal = true;
+                      } catch (err) {
+                          console.error('Retry failed', err);
+                          alert('Thực hiện retry thất bại: ' + (err.message || ''));
+                      } finally {
+                          this.retryInProgress = false;
+                      }
+                  },
+
+                  closeRetryModal() {
+                      this.showRetryModal = false;
+                      this.retryResult = null;
+                  },
+
+                  startLogsPolling() {
+                      this.stopLogsPolling();
+                      if (this.logsInterval) return; // prevent duplicates
+                      this.logsInterval = setInterval(async () => {
+                          if (!this.showLogsModal || !this.selectedTask) return this
+                              .stopLogsPolling();
+                          await this.fetchLogs();
+                          // If task is no longer running, stop polling
+                          if (this.selectedTask && this.selectedTask.status !== 'running')
+                              this.stopLogsPolling();
+                      }, 2000);
+                  },
+
+                  stopLogsPolling() {
+                      if (this.logsInterval) {
+                          clearInterval(this.logsInterval);
+                          this.logsInterval = null;
+                      }
+                  },
+
+
+
+                  parseDate(date) {
+
+                      if (!date) {
+                          return null;
+                      }
+
+                      return new Date(
+                          date.replace(
+                              ' ',
+                              'T'
                           )
                       );
+                  },
 
-                  if (seconds < 60) {
-                      return `${seconds}s`;
+                  formatDuration(task) {
+
+                      if (!task.started_at) {
+                          return '-';
+                      }
+
+                      const start =
+                          this.parseDate(
+                              task.started_at
+                          );
+
+                      const end =
+                          task.finished_at ?
+
+                          this.parseDate(
+                              task.finished_at
+                          ) :
+
+                          new Date(
+                              this.now
+                          );
+
+                      if (!start || !end) {
+                          return '-';
+                      }
+
+                      const seconds =
+                          Math.max(
+                              0,
+                              Math.floor(
+                                  (end - start) /
+                                  1000
+                              )
+                          );
+
+                      if (seconds < 60) {
+                          return `${seconds}s`;
+                      }
+
+                      const hours =
+                          Math.floor(
+                              seconds / 3600
+                          );
+
+                      const mins =
+                          Math.floor(
+                              (seconds %
+                                  3600) / 60
+                          );
+
+                      const secs =
+                          seconds % 60;
+
+                      if (hours > 0) {
+                          return `${hours}h ${mins}m`;
+                      }
+
+                      return `${mins}m ${secs}s`;
+                  },
+
+                  formatResult(task) {
+                      const processed = Number(task.processed_items || 0);
+                      const total = Number(task.total_items || 0);
+
+                      // If task completed, normalize to final snapshot
+                      if ((task.status || '').toString().toLowerCase() === 'completed') {
+                          const t = total;
+                          return `${t}/${t} items`;
+                      }
+
+                      // Normal case: processed <= total
+                      if (processed <= total) {
+                          return `${processed}/${total} items`;
+                      }
+
+                      // processed > total: show total/total (+N mới)
+                      const newCount = processed - total;
+                      const main = `${total}/${total} items`;
+                      const extra =
+                          `<span class="ml-1 text-xs text-amber-400" title="Phát hiện dữ liệu mới trong lúc crawl">(+${newCount} mới)</span>`;
+                      return `${main} ${extra}`;
+                  },
+
+                  formatDate(date, withTime = true) {
+
+                      if (!date) {
+                          return '-';
+                      }
+
+                      if (
+                          typeof date === 'string' &&
+                          /^\d{4}-\d{2}-\d{2}$/.test(date)
+                      ) {
+
+                          const [
+                              year,
+                              month,
+                              day
+                          ] = date.split('-');
+
+                          return withTime ?
+                              `${day}/${month}/${year}` :
+                              `${day}/${month}/${year}`;
+                      }
+
+                      const parsed =
+                          this.parseDate(date);
+
+                      if (!parsed) {
+                          return '-';
+                      }
+
+                      return parsed
+                          .toLocaleString(
+                              'vi-VN', {
+                                  timeZone: 'Asia/Ho_Chi_Minh',
+
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+
+                                  ...(withTime && {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit'
+                                  })
+                              }
+                          );
                   }
 
-                  const hours =
-                      Math.floor(
-                          seconds / 3600
-                      );
+              }));
+          });
+      </script>
 
-                  const mins =
-                      Math.floor(
-                          (seconds %
-                              3600) / 60
-                      );
-
-                  const secs =
-                      seconds % 60;
-
-                  if (hours > 0) {
-                      return `${hours}h ${mins}m`;
-                  }
-
-                  return `${mins}m ${secs}s`;
-              },
-
-              formatDate(date, withTime = true) {
-
-                  if (!date) {
-                      return '-';
-                  }
-
-                  if (
-                      typeof date === 'string' &&
-                      /^\d{4}-\d{2}-\d{2}$/.test(date)
-                  ) {
-
-                      const [
-                          year,
-                          month,
-                          day
-                      ] = date.split('-');
-
-                      return withTime ?
-                          `${day}/${month}/${year}` :
-                          `${day}/${month}/${year}`;
-                  }
-
-                  const parsed =
-                      this.parseDate(date);
-
-                  if (!parsed) {
-                      return '-';
-                  }
-
-                  return parsed
-                      .toLocaleString(
-                          'vi-VN', {
-                              timeZone: 'Asia/Ho_Chi_Minh',
-
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-
-                              ...(withTime && {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  second: '2-digit'
-                              })
-                          }
-                      );
-              }
-
-          }));
-      });
-  </script>
+      @include('admin.components.dauthau.task-detail-modal')

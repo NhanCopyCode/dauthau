@@ -30,4 +30,19 @@ Route::prefix('crawl')->group(function () {
         CrawlController::class,
         'history'
     ]);
+
+    // Retry endpoints (Phase A lightweight)
+    Route::get('/tasks/{task}/retry-candidates', [
+        App\Http\Controllers\CrawlRetryController::class,
+        'candidates'
+    ]);
+
+    Route::post('/tasks/{task}/retry', [
+        App\Http\Controllers\CrawlRetryController::class,
+        'retry'
+    ]);
+    Route::get('/tasks/{task}/zombie-check', [
+        App\Http\Controllers\CrawlRetryController::class,
+        'zombieCheck'
+    ]);
 });

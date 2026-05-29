@@ -9,6 +9,8 @@ use App\Services\TenderDetailCrawlerService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use App\Services\CrawlLogger;
 use Throwable;
 
 class CrawlTenderDetailJob implements ShouldQueue
@@ -139,40 +141,28 @@ class CrawlTenderDetailJob implements ShouldQueue
     ): void {
 
         $tracker = app(CrawlTracker::class);
+        $logger = app(CrawlLogger::class);
 
         $tender = Tender::find(
             $this->tenderId
         );
 
         if (!$tender) {
+            $logger->warning($this->taskId, 'Tender not found', [
+                'tender_id' => $this->tenderId,
+            ], 'detail');
 
-            Log::warning(
-                'Tender not found',
-                [
-                    'tender_id' =>
-                    $this->tenderId,
-                ]
-            );
-
-            $tracker->jobFinished(
-                $this->taskId
-            );
+            $tracker->jobFinished($this->taskId);
 
             return;
         }
 
         try {
 
-            Log::info(
-                'DETAIL CRAWL START',
-                [
-                    'tender_id' =>
-                    $tender->id,
-
-                    'attempt' =>
-                    $this->attempts(),
-                ]
-            );
+            $logger->info($this->taskId, 'DETAIL CRAWL START', [
+                'tender_id' => $tender->id,
+                'attempt' => $this->attempts(),
+            ], 'detail');
 
             $tenderDetail =
                 $service->handle(
@@ -188,7 +178,6 @@ class CrawlTenderDetailJob implements ShouldQueue
                     new CrawlTenderHsmtJob(
                         tenderId: $tenderDetail
                             ->tender_id,
-
                         taskId: $this->taskId
                     )
                 )->onQueue('hsmt');
@@ -199,54 +188,36 @@ class CrawlTenderDetailJob implements ShouldQueue
                     );
             }
 
-            Log::info(
-                'DETAIL SUCCESS',
-                [
-                    'tender_id' =>
-                    $tender->id,
-                ]
-            );
+            $logger->info($this->taskId, 'DETAIL SUCCESS', [
+                'tender_id' => $tender->id,
+            ], 'detail');
 
-            $tracker->jobFinished(
-                $this->taskId
-            );
+            // mark this detail job as processed in the task counters
+            DB::table('crawl_tasks')->where('id', $this->taskId)
+                ->update(['processed_items' => DB::raw('processed_items + 1')]);
+
+            $tracker->jobFinished($this->taskId);
         } catch (
             TemporaryCrawlerException $e
         ) {
 
-            Log::warning(
-                'TEMP DETAIL FAILURE',
-                [
-                    'tender_id' =>
-                    $tender->id,
-
-                    'attempt' =>
-                    $this->attempts(),
-
-                    'max_tries' =>
-                    $this->tries,
-
-                    'error' =>
-                    $e->getMessage(),
-                ]
-            );
+            $logger->warning($this->taskId, 'TEMP DETAIL FAILURE', [
+                'tender_id' => $tender->id,
+                'attempt' => $this->attempts(),
+                'max_tries' => $this->tries,
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ], 'detail');
 
             throw $e;
         } catch (\Throwable $e) {
 
-            Log::error(
-                'PERMANENT DETAIL FAILURE',
-                [
-                    'tender_id' =>
-                    $tender->id,
-
-                    'attempt' =>
-                    $this->attempts(),
-
-                    'error' =>
-                    $e->getMessage(),
-                ]
-            );
+            $logger->error($this->taskId, 'PERMANENT DETAIL FAILURE', [
+                'tender_id' => $tender->id,
+                'attempt' => $this->attempts(),
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ], 'detail');
 
             throw $e;
         }
@@ -255,16 +226,15 @@ class CrawlTenderDetailJob implements ShouldQueue
     public function failed(
         Throwable $e
     ): void {
+        $logger = app(CrawlLogger::class);
+        // ensure this job counts as processed even on permanent failure
+        DB::table('crawl_tasks')->where('id', $this->taskId)
+            ->update(['processed_items' => DB::raw('processed_items + 1')]);
 
-        Log::error(
-            'DETAIL JOB FAILED PERMANENTLY',
-            [
-                'tender_id' =>
-                $this->tenderId,
-
-                'error' =>
-                $e->getMessage(),
-            ]
-        );
+        $logger->error($this->taskId, 'DETAIL JOB FAILED PERMANENTLY', [
+            'tender_id' => $this->tenderId,
+            'error' => $e->getMessage(),
+            'exception' => $e,
+        ], 'detail');
     }
 }

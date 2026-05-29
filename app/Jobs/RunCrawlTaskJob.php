@@ -25,23 +25,14 @@ class RunCrawlTaskJob implements ShouldQueue
 
         app(CrawlTracker::class)->start($task->id);
 
-
+        // Reset counters in case this is a retry
         $task->update([
-
-            'status' => 'running',
-
-            'started_at' => now(),
-
             'finished_at' => null,
-
             'processed_pages' => 0,
-
             'processed_items' => 0,
-
             'total_pages' => 0,
-
             'total_items' => 0,
-
+            'api_total_items' => 0,
             'error' => null,
         ]);
         switch ($task->type) {

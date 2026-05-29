@@ -11,6 +11,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\CrawlLogger;
 
 class CrawlTenderDateJob implements ShouldQueue
 {
@@ -33,6 +34,7 @@ class CrawlTenderDateJob implements ShouldQueue
     ): void {
 
         $tracker = app(CrawlTracker::class);
+        $logger = app(CrawlLogger::class);
 
 
         $task = CrawlTask::findOrFail(
@@ -59,13 +61,14 @@ class CrawlTenderDateJob implements ShouldQueue
 
         if (!$lock->get()) {
 
-            Log::warning(
+            $logger->warning(
+                $this->taskId,
                 'Date page already processing',
                 [
-                    'task_id' => $this->taskId,
                     'date' => $this->date,
                     'page' => $page,
-                ]
+                ],
+                'crawl'
             );
 
             $tracker->jobFinished($task->id);
@@ -76,14 +79,10 @@ class CrawlTenderDateJob implements ShouldQueue
         $startedAt = microtime(true);
 
         try {
-            Log::info('DATE CRAWL START', [
-
-                'task_id' => $task->id,
-
+            $logger->info($this->taskId, 'DATE CRAWL START', [
                 'date' => $this->date,
-
                 'page' => $page,
-            ]);
+            ], 'crawl');
 
             $data = $service->crawlDailyPage(
                 page: $page,
@@ -94,49 +93,51 @@ class CrawlTenderDateJob implements ShouldQueue
             $totalPages = $data['total_pages'] ?? 0;
             $totalElements = $data['total_elements'] ?? 0;
 
-            if ($page === 0) {
+            $currentApiTotal = (int) $task->api_total_items;
 
-                CrawlTask::where(
-                    'id',
-                    $task->id
-                )->update([
-
-                    'total_pages' => DB::raw(
-                        "COALESCE(total_pages, 0) + {$totalPages}"
-                    ),
-
-                    'total_items' => DB::raw(
-                        "COALESCE(total_items, 0) + {$totalElements}"
-                    ),
-                ]);
+            // For range tasks we need to sum totals across each date producer.
+            // Only the first page (page 0) contains the API's total count for that date,
+            // so increment the task api_total_items atomically to avoid double-counting.
+            if ($task->type === 'range') {
+                if ($page === 0) {
+                    CrawlTask::where('id', $task->id)
+                        ->update([
+                            'total_pages' => DB::raw(
+                                "COALESCE(total_pages, 0) + {$totalPages}"
+                            ),
+                            'api_total_items' => DB::raw(
+                                "COALESCE(api_total_items, 0) + {$totalElements}"
+                            ),
+                        ]);
+                }
+            } else {
+                // For single-day or full-like date crawls, ensure we reflect increases
+                // in the API's reported total elements into api_total_items.
+                if ($totalElements > $currentApiTotal) {
+                    CrawlTask::where('id', $task->id)
+                        ->update([
+                            'total_pages' => max(
+                                (int) $task->total_pages,
+                                $totalPages
+                            ),
+                            'api_total_items' => $totalElements,
+                        ]);
+                }
             }
-            Log::info('DAILY API META', [
-                'task_id' => $this->taskId,
-
+            $logger->info($this->taskId, 'DAILY API META', [
                 'date' => $this->date,
-
                 'page' => $page,
-
-                'total_pages'
-                => $data['total_pages'] ?? null,
-
-                'total_elements'
-                => $data['total_elements'] ?? null,
-
-                'items_in_page'
-                => count($items),
-            ]);
+                'total_pages' => $data['total_pages'] ?? null,
+                'total_elements' => $data['total_elements'] ?? null,
+                'items_in_page' => count($items),
+            ], 'crawl');
 
             if (empty($items)) {
 
-                Log::info('DATE CRAWL FINISHED', [
-
-                    'task_id' => $task->id,
-
+                $logger->info($this->taskId, 'DATE CRAWL FINISHED', [
                     'date' => $this->date,
-
                     'page' => $page,
-                ]);
+                ], 'crawl');
 
                 $tracker->markProducerDone($task->id);
 
@@ -166,73 +167,45 @@ class CrawlTenderDateJob implements ShouldQueue
                 3
             );
 
-            Log::info('DATE PAGE DONE', [
-
-                'task_id' => $task->id,
-
+            $logger->info($this->taskId, 'DATE PAGE DONE', [
                 'date' => $this->date,
-
                 'page' => $page,
-
                 'items' => $itemCount,
-
                 'duration_seconds' => $duration,
+                'items_per_second' => $duration > 0 ? round($itemCount / $duration, 2) : 0,
+            ], 'crawl');
 
-                'items_per_second' => $duration > 0
-                    ? round(
-                        $itemCount / $duration,
-                        2
-                    )
-                    : 0,
-            ]);
-
+            $additional = 0;
             foreach ($tenders as $tender) {
-
-                dispatch(
-                    new CrawlTenderDetailJob(
-                        $tender->id,
-                        $this->taskId
-                    )
-                )->onQueue('detail');
-
+                // detail job
+                dispatch(new CrawlTenderDetailJob($tender->id, $this->taskId))->onQueue('detail');
                 $tracker->jobDispatched($task->id);
+                $additional += 1; // detail
 
+                // sub resources
                 if ((int) $tender->num_petition > 0) {
-
-                    dispatch(
-                        new CrawlTenderSubResourceJob(
-                            $tender->id,
-                            'kn',
-                            $this->taskId
-                        )
-                    )->onQueue('sub');
-
+                    dispatch(new CrawlTenderSubResourceJob($tender->id, 'kn', $this->taskId))->onQueue('sub');
                     $tracker->jobDispatched($task->id);
+                    $additional += 1;
                 }
-
 
                 if ((int) $tender->num_clarify_req > 0) {
-
-                    dispatch(
-                        new CrawlTenderSubResourceJob(
-                            $tender->id,
-                            'yclr',
-                            $this->taskId
-                        )
-                    )->onQueue('sub');
-
+                    dispatch(new CrawlTenderSubResourceJob($tender->id, 'yclr', $this->taskId))->onQueue('sub');
                     $tracker->jobDispatched($task->id);
+                    $additional += 1;
                 }
 
-                dispatch(
-                    new CrawlTenderSubResourceJob(
-                        $tender->id,
-                        'hntdt',
-                        $this->taskId
-                    )
-                )->onQueue('sub');
-
+                // hntdt always
+                dispatch(new CrawlTenderSubResourceJob($tender->id, 'hntdt', $this->taskId))->onQueue('sub');
                 $tracker->jobDispatched($task->id);
+                $additional += 1;
+            }
+
+            if ($additional > 0) {
+                CrawlTask::where('id', $task->id)
+                    ->update([
+                        'total_items' => DB::raw("COALESCE(total_items, 0) + {$additional}"),
+                    ]);
             }
 
             dispatch(
@@ -248,17 +221,12 @@ class CrawlTenderDateJob implements ShouldQueue
             $tracker->jobFinished($task->id);
         } catch (\Throwable $e) {
 
-            Log::error('DATE CRAWL FAILED', [
-
-                'task_id' => $this->taskId,
-
+            $logger->error($this->taskId, 'DATE CRAWL FAILED', [
                 'date' => $this->date,
-
                 'page' => $page,
-
                 'message' => $e->getMessage(),
-            ]);
-
+                'exception' => $e,
+            ], 'crawl');
             $task->update([
 
                 'status' => 'failed',
@@ -277,35 +245,31 @@ class CrawlTenderDateJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        CrawlTask::where(
-            'id',
-            $this->taskId
-        )->update([
-
-            'status' => 'failed',
-
-            'error' => $e->getMessage(),
-
-            'finished_at' => now(),
-        ]);
+        $task = CrawlTask::find($this->taskId);
+        if ($task) {
+            $task->update([
+                'status' => 'failed',
+                'error' => $e->getMessage(),
+                'finished_at' => now(),
+            ]);
+        }
 
         app(CrawlTracker::class)
             ->jobFinished(
                 $this->taskId
             );
 
-        Log::error(
+        $logger = app(CrawlLogger::class);
+        $logger->error(
+            $this->taskId,
             'CrawlTenderDateJob permanently failed',
             [
-
-                'task_id' => $this->taskId,
-
                 'date' => $this->date,
-
                 'page' => $this->page,
-
                 'error' => $e->getMessage(),
-            ]
+                'exception' => $e,
+            ],
+            'crawl'
         );
     }
 }

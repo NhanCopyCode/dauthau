@@ -155,10 +155,7 @@ class CrawlTracker
                     2
                 );
 
-                CrawlTask::where(
-                    'id',
-                    $taskId
-                )->update([
+                CrawlTask::find($taskId)?->update([
                     'status' => 'completed',
                     'finished_at' => now(),
                 ]);

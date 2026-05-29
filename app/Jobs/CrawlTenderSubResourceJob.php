@@ -7,6 +7,7 @@ use App\Services\CrawlTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class CrawlTenderSubResourceJob implements ShouldQueue
 {
@@ -64,6 +65,10 @@ class CrawlTenderSubResourceJob implements ShouldQueue
                 default => null
             };
 
+            // mark this subresource as processed
+            DB::table('crawl_tasks')->where('id', $this->taskId)
+                ->update(['processed_items' => DB::raw('processed_items + 1')]);
+
             $tracker->jobFinished($this->taskId);
         } catch (\Throwable $e) {
 
@@ -84,10 +89,11 @@ class CrawlTenderSubResourceJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        app(CrawlTracker::class)
-            ->jobFinished(
-                $this->taskId
-            );
+        // ensure we count the subresource as finished even when it failed permanently
+        DB::table('crawl_tasks')->where('id', $this->taskId)
+            ->update(['processed_items' => DB::raw('processed_items + 1')]);
+
+        app(CrawlTracker::class)->jobFinished($this->taskId);
 
         Log::critical(
             "SubResource {$this->type} permanently failed",

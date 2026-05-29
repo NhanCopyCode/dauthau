@@ -13,10 +13,16 @@ class CrawlController extends Controller
     public function full()
     {
         $task = CrawlTask::create([
-
             'type' => 'full',
-
-            'status' => 'pending',
+            'status' => 'running',
+            'started_at' => now(),
+            'finished_at' => null,
+            'processed_pages' => 0,
+            'processed_items' => 0,
+            'total_pages' => 0,
+            'total_items' => 0,
+            'api_total_items' => 0,
+            'error' => null,
         ]);
 
         RunCrawlTaskJob::dispatch($task->id)
@@ -35,13 +41,17 @@ class CrawlController extends Controller
         $today = now()->toDateString();
 
         $task = CrawlTask::create([
-
             'type' => 'daily',
-
-            'status' => 'pending',
-
+            'status' => 'running',
+            'started_at' => now(),
+            'finished_at' => null,
+            'processed_pages' => 0,
+            'processed_items' => 0,
+            'total_pages' => 0,
+            'total_items' => 0,
+            'api_total_items' => 0,
+            'error' => null,
             'from_date' => $today,
-
             'to_date' => $today,
         ]);
 
@@ -67,13 +77,17 @@ class CrawlController extends Controller
         ]);
 
         $task = CrawlTask::create([
-
             'type' => 'range',
-
-            'status' => 'pending',
-
+            'status' => 'running',
+            'started_at' => now(),
+            'finished_at' => null,
+            'processed_pages' => 0,
+            'processed_items' => 0,
+            'total_pages' => 0,
+            'total_items' => 0,
+            'api_total_items' => 0,
+            'error' => null,
             'from_date' => $request->from_date,
-
             'to_date' => $request->to_date,
         ]);
 
@@ -97,9 +111,69 @@ class CrawlController extends Controller
             $perPage = 10;
         }
 
-        $paginator = CrawlTask::query()
-            ->latest('started_at')
-            ->paginate($perPage);
+        $query = CrawlTask::query();
+
+        // Keyword search: id, type, error
+        if ($keyword = trim($request->get('keyword', ''))) {
+            $query->where(function ($q) use ($keyword) {
+                if (is_numeric($keyword)) {
+                    $q->orWhere('id', (int) $keyword);
+                }
+                $q->orWhere('type', 'LIKE', "%{$keyword}%")
+                    ->orWhere('error', 'LIKE', "%{$keyword}%");
+            });
+        }
+
+        // Status filter
+        if ($status = $request->get('status')) {
+            if (strtolower($status) !== 'all') {
+                $query->where('status', $status);
+            }
+        }
+
+        // Data range filter: filter tasks by the data-range they were configured to crawl
+        // These correspond to the UI group "Khoảng dữ liệu crawl"
+        if ($from = $request->get('from_date')) {
+            try {
+                $fromDt = Carbon::parse($from)->startOfDay();
+                $query->whereDate('from_date', '>=', $fromDt->toDateString());
+            } catch (\Throwable $e) {
+                // ignore invalid date
+            }
+        }
+
+        if ($to = $request->get('to_date')) {
+            try {
+                $toDt = Carbon::parse($to)->endOfDay();
+                $query->whereDate('to_date', '<=', $toDt->toDateString());
+            } catch (\Throwable $e) {
+                // ignore invalid date
+            }
+        }
+
+        // Crawl run time filter: filter tasks by when they actually ran (started_at)
+        // These correspond to the UI group "Thời gian crawl" and are optional
+        if ($startedFrom = $request->get('crawl_started_from')) {
+            try {
+                $startedFromDt = Carbon::parse($startedFrom)->startOfDay();
+                $query->where('started_at', '>=', $startedFromDt);
+            } catch (\Throwable $e) {
+                // ignore invalid date
+            }
+        }
+
+        if ($startedTo = $request->get('crawl_started_to')) {
+            try {
+                $startedToDt = Carbon::parse($startedTo)->endOfDay();
+                $query->where('started_at', '<=', $startedToDt);
+            } catch (\Throwable $e) {
+                // ignore invalid date
+            }
+        }
+
+        $paginator = $query->latest('started_at')
+            ->paginate($perPage)
+            ->appends($request->only(['keyword', 'status', 'from_date', 'to_date', 'crawl_started_from', 'crawl_started_to', 'per_page']));
 
         $items = collect($paginator->items())->map(function ($task) {
             return [
@@ -115,10 +189,11 @@ class CrawlController extends Controller
 
                 'processed_items' => $task->processed_items ?? 0,
 
-                'total_items' => $task->total_items ?? 0,
+                // surface the API-reported number of tenders for this task
+                'total_items' => $task->api_total_items ?? 0,
 
                 'progress' => (
-                    ($task->processed_items ?? 0) . '/' . ($task->total_items ?? 0)
+                    ($task->processed_items ?? 0) . '/' . ($task->api_total_items ?? 0)
                 ),
 
                 'error' => $task->error,
@@ -144,22 +219,15 @@ class CrawlController extends Controller
         $today = now('Asia/Ho_Chi_Minh')
             ->startOfDay();
 
-        /**
-         * Tổng số gói thầu thực tế
-         */
+
         $totalItems = Tender::query()
             ->count();
 
-        /**
-         * Gói thầu mới hôm nay
-         */
         $todayItems = Tender::query()
             ->where('created_at', '>=', $today)
             ->count();
 
-        /**
-         * Average crawl duration
-         */
+
         $avgSeconds = CrawlTask::query()
             ->whereNotNull('started_at')
             ->whereNotNull('finished_at')
@@ -184,9 +252,6 @@ class CrawlController extends Controller
                 "{$minutes}m {$seconds}s";
         }
 
-        /**
-         * Task gần nhất
-         */
         $lastTask = CrawlTask::query()
             ->latest('started_at')
             ->first();
@@ -204,24 +269,18 @@ class CrawlController extends Controller
             ->format('H:i d/m/Y')
             : '--';
 
-        /**
-         * Running task
-         */
         $runningJobs = CrawlTask::query()
             ->where('status', 'running')
             ->count();
 
-        $runningTask = CrawlTask::query()
-            ->where('status', 'running')
-            ->latest('started_at')
-            ->first();
-
         $currentProgress = '--';
 
-        if ($runningTask) {
-            $processed = $runningTask->processed_items ?? 0;
-            $total = $runningTask->total_items ?? 0;
-            $currentProgress = "{$processed}/{$total}";
+        if ($runningJobs > 0) {
+            $currentProgress = '⏳ Đang crawl...';
+        } elseif ($lastTask && $lastTask->status === 'completed') {
+            $currentProgress = '✅ Hoàn tất';
+        } elseif ($lastTask && $lastTask->status === 'failed') {
+            $currentProgress = '❌ Thất bại';
         }
 
         return response()->json([

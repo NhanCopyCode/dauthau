@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\CrawlTask;
+use App\Observers\CrawlTaskObserver;
 use App\Services\Category\Strategies\WorkTypeStrategy;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,9 +17,9 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
     }
-     
+
     public function boot(): void
     {
-        //
+        CrawlTask::observe(CrawlTaskObserver::class);
     }
 }

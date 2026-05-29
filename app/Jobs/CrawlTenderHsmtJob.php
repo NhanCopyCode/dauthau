@@ -8,6 +8,8 @@ use App\Services\HsmtService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use App\Services\CrawlLogger;
 
 // class CrawlTenderHsmtJob implements ShouldQueue
 // {
@@ -95,6 +97,7 @@ class CrawlTenderHsmtJob implements ShouldQueue
         $tracker = app(
             CrawlTracker::class
         );
+        $logger = app(CrawlLogger::class);
 
         try {
 
@@ -103,52 +106,29 @@ class CrawlTenderHsmtJob implements ShouldQueue
             );
 
             if (!$tender) {
+                $logger->warning($this->taskId, 'Hsmt job: tender not found', [
+                    'tender_id' => $this->tenderId,
+                ], 'hsmt');
 
-                Log::warning(
-                    'Hsmt job: tender not found',
-                    [
-
-                        'task_id' =>
-                        $this->taskId,
-
-                        'tender_id' =>
-                        $this->tenderId,
-                    ]
-                );
-
-                $tracker->jobFinished(
-                    $this->taskId
-                );
+                $tracker->jobFinished($this->taskId);
 
                 return;
             }
 
-            $service->handle(
-                $tender->id
-            );
+            $service->handle($tender->id);
 
-            $tracker->jobFinished(
-                $this->taskId
-            );
+            // mark hsmt job as processed
+            DB::table('crawl_tasks')->where('id', $this->taskId)
+                ->update(['processed_items' => DB::raw('processed_items + 1')]);
+
+            $tracker->jobFinished($this->taskId);
         } catch (\Throwable $e) {
-
-            Log::error(
-                'HSMT job failed',
-                [
-
-                    'task_id' =>
-                    $this->taskId,
-
-                    'tender_id' =>
-                    $this->tenderId,
-
-                    'attempt' =>
-                    $this->attempts(),
-
-                    'error' =>
-                    $e->getMessage(),
-                ]
-            );
+            $logger->error($this->taskId, 'HSMT job failed', [
+                'tender_id' => $this->tenderId,
+                'attempt' => $this->attempts(),
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ], 'hsmt');
 
             throw $e;
         }
@@ -158,27 +138,18 @@ class CrawlTenderHsmtJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        app(CrawlTracker::class)
-            ->jobFinished(
-                $this->taskId
-            );
+        // count as processed on permanent failure
+        DB::table('crawl_tasks')->where('id', $this->taskId)
+            ->update(['processed_items' => DB::raw('processed_items + 1')]);
 
-        Log::critical(
-            'HSMT permanently failed',
-            [
+        app(CrawlTracker::class)->jobFinished($this->taskId);
+        $logger = app(CrawlLogger::class);
 
-                'task_id' =>
-                $this->taskId,
-
-                'tender_id' =>
-                $this->tenderId,
-
-                'attempts' =>
-                $this->attempts(),
-
-                'error' =>
-                $e->getMessage(),
-            ]
-        );
+        $logger->error($this->taskId, 'HSMT permanently failed', [
+            'tender_id' => $this->tenderId,
+            'attempts' => $this->attempts(),
+            'error' => $e->getMessage(),
+            'exception' => $e,
+        ], 'hsmt');
     }
 }

@@ -22,3 +22,12 @@ Route::get('/tenders/{id}/export-excel', [TenderExportController::class, 'export
     ->name('tenders.export.excel');
 Route::get('/tenders/{egp_id}/download', [TBMTController::class, 'download'])
     ->name('tenders.download');
+
+// Crawl task logs
+Route::get('/crawl-tasks/{task}/logs', [\App\Http\Controllers\CrawlTaskLogController::class, 'logs']);
+Route::get('/crawl-tasks/{task}/detail', [\App\Http\Controllers\CrawlTaskDetailController::class, 'show']);
+
+// Notifications
+Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
+Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
+Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);

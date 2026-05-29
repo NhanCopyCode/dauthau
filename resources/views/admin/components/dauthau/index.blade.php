@@ -225,68 +225,112 @@
                     </div>
 
                     <!-- Notifications -->
-                    <div class="relative" x-data="{ open: false }">
+                    <div class="relative" x-data="notifications" @click.away="open = false">
                         <button @click="open = !open"
                             class="relative w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                            <span x-show="unreadCount > 0"
+                                class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[10px] font-semibold text-white flex items-center justify-center"
+                                x-text="unreadCount > 99 ? '99+' : unreadCount"></span>
                         </button>
                         <!-- Notification Dropdown -->
-                        <div x-show="open" @click.away="open = false"
-                            x-transition:enter="transition ease-out duration-150"
+                        <div x-show="open" x-transition:enter="transition ease-out duration-150"
                             x-transition:enter-start="opacity-0 translate-y-1"
                             x-transition:enter-end="opacity-100 translate-y-0"
                             x-transition:leave="transition ease-in duration-100"
                             x-transition:leave-start="opacity-100 translate-y-0"
                             x-transition:leave-end="opacity-0 translate-y-1"
                             class="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50">
-                            <div class="p-4 border-b border-zinc-800">
+                            <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
                                 <h3 class="text-sm font-semibold text-zinc-100">Thông báo</h3>
+                                <button x-show="unreadCount > 0" @click="markAllAsRead()"
+                                    class="text-xs text-blue-400 hover:text-blue-300">Đã đọc tất cả</button>
                             </div>
                             <div class="max-h-72 overflow-y-auto">
-                                <div class="p-3 hover:bg-zinc-800/50 border-b border-zinc-800/50 cursor-pointer">
-                                    <div class="flex gap-3">
-                                        <div
-                                            class="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <template x-if="items.length === 0">
+                                    <div class="p-6 text-center text-sm text-zinc-500">Chưa có thông báo</div>
+                                </template>
+                                <template x-for="n in items" :key="n.id">
+                                    <div @click="markAsRead(n.id)"
+                                        class="p-3 hover:bg-zinc-800/50 border-b border-zinc-800/50 cursor-pointer"
+                                        :class="n.read ? 'opacity-50' : ''">
+                                        <div class="flex gap-3">
+                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                                :class="n.type === 'completed' ? 'bg-emerald-500/10' : 'bg-red-500/10'">
+                                                <template x-if="n.type === 'completed'">
+                                                    <svg class="w-4 h-4 text-emerald-500" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </template>
+                                                <template x-if="n.type === 'failed'">
+                                                    <svg class="w-4 h-4 text-red-500" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M12 9v2m0 4h.01" />
+                                                    </svg>
+                                                </template>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="text-sm" :class="n.read ? 'text-zinc-400' : 'text-zinc-200'"
+                                                    x-text="n.message"></p>
+                                                <p class="text-xs text-zinc-600 mt-1" x-text="n.created_at"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Toast Notifications -->
+                        <template x-for="(toast, idx) in toasts" :key="toast.id">
+                            <div x-data x-init="setTimeout(() => { removeToast(toast.id) }, 5000)" x-transition:enter="transition ease-out duration-300"
+                                x-transition:enter-start="opacity-0 translate-x-full"
+                                x-transition:enter-end="opacity-100 translate-x-0"
+                                x-transition:leave="transition ease-in duration-200"
+                                x-transition:leave-start="opacity-100 translate-x-0"
+                                x-transition:leave-end="opacity-0 translate-x-full"
+                                class="fixed bottom-4 right-4 z-[9999] max-w-sm bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden"
+                                :style="`bottom: ${1 + idx * 4.5}rem`">
+                                <div class="p-4 flex items-start gap-3">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                        :class="toast.type === 'completed' ? 'bg-emerald-500/10' : 'bg-red-500/10'">
+                                        <template x-if="toast.type === 'completed'">
                                             <svg class="w-4 h-4 text-emerald-500" fill="none"
                                                 stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M5 13l4 4L19 7" />
                                             </svg>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <p class="text-sm text-zinc-200">Crawl Daily hoàn thành</p>
-                                            <p class="text-xs text-zinc-500 mt-0.5">352 tenders đã thu thập</p>
-                                            <p class="text-xs text-zinc-600 mt-1">2 phút trước</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="p-3 hover:bg-zinc-800/50 border-b border-zinc-800/50 cursor-pointer">
-                                    <div class="flex gap-3">
-                                        <div
-                                            class="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        </template>
+                                        <template x-if="toast.type === 'failed'">
                                             <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor"
                                                 viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    d="M12 9v2m0 4h.01" />
                                             </svg>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <p class="text-sm text-zinc-200">Lỗi kết nối database</p>
-                                            <p class="text-xs text-zinc-500 mt-0.5">Queue hsmt_queue tạm dừng</p>
-                                            <p class="text-xs text-zinc-600 mt-1">15 phút trước</p>
-                                        </div>
+                                        </template>
                                     </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium"
+                                            :class="toast.type === 'completed' ? 'text-emerald-400' : 'text-red-400'"
+                                            x-text="toast.message"></p>
+                                        <p class="text-xs text-zinc-500 mt-0.5" x-text="toast.created_at"></p>
+                                    </div>
+                                    <button @click="removeToast(toast.id)"
+                                        class="text-zinc-500 hover:text-zinc-300 flex-shrink-0">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="p-3 border-t border-zinc-800">
-                                <a href="#" class="text-xs font-medium text-blue-400 hover:text-blue-300">Xem
-                                    tất cả thông báo</a>
-                            </div>
-                        </div>
+                        </template>
                     </div>
 
                     <!-- User Profile -->
@@ -383,7 +427,7 @@
                     <!-- SECTION 1: Stats Overview -->
                     <!-- ================================ -->
                     @include('admin.components.dauthau.stats-overview')
-                    
+
 
                     {{-- Crawl actions --}}
                     @include('admin.components.dauthau.crawl-actions')
@@ -758,6 +802,105 @@
                 }
             }
         }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('notifications', () => ({
+                open: false,
+                unreadCount: 0,
+                items: [],
+                toasts: [],
+                lastId: 0,
+                polling: null,
+
+                init() {
+                    this.fetchNotifications();
+                    this.polling = setInterval(() => this.fetchNotifications(), 5000);
+                },
+
+                destroy() {
+                    if (this.polling) {
+                        clearInterval(this.polling);
+                        this.polling = null;
+                    }
+                },
+
+                async fetchNotifications() {
+                    try {
+                        const res = await fetch('/notifications', {
+                            headers: {
+                                Accept: 'application/json'
+                            }
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+
+                        // Detect new notifications for toast
+                        if (this.lastId > 0) {
+                            for (const n of data.notifications || []) {
+                                if (n.id > this.lastId && !n.read) {
+                                    this.toasts.push(n);
+                                    // Auto-remove toast after 5s
+                                    setTimeout(() => {
+                                        this.toasts = this.toasts.filter(t => t.id !== n
+                                            .id);
+                                    }, 5000);
+                                }
+                            }
+                        }
+
+                        if (data.notifications && data.notifications.length > 0) {
+                            this.lastId = Math.max(...data.notifications.map(n => n.id));
+                        }
+
+                        this.unreadCount = data.unread_count ?? 0;
+                        this.items = data.notifications ?? [];
+                    } catch (err) {
+                        console.error('Fetch notifications failed', err);
+                    }
+                },
+
+                async markAsRead(id) {
+                    try {
+                        await fetch(`/notifications/${id}/read`, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector(
+                                    'meta[name="csrf-token"]')?.content
+                            }
+                        });
+                        const n = this.items.find(i => i.id === id);
+                        if (n) n.read = true;
+                        this.unreadCount = Math.max(0, this.unreadCount - 1);
+                    } catch (err) {
+                        console.error('Mark as read failed', err);
+                    }
+                },
+
+                async markAllAsRead() {
+                    try {
+                        await fetch('/notifications/read-all', {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector(
+                                    'meta[name="csrf-token"]')?.content
+                            }
+                        });
+                        this.items.forEach(n => n.read = true);
+                        this.unreadCount = 0;
+                    } catch (err) {
+                        console.error('Mark all as read failed', err);
+                    }
+                },
+
+                removeToast(id) {
+                    this.toasts = this.toasts.filter(t => t.id !== id);
+                }
+            }));
+        });
     </script>
 
 </body>

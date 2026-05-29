@@ -7,14 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class CrawlTask extends Model
 {
-   
+
     public const TYPE_FULL = 'full';
 
     public const TYPE_DAILY = 'daily';
 
     public const TYPE_RANGE = 'range';
 
-  
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_RUNNING = 'running';
@@ -38,6 +38,7 @@ class CrawlTask extends Model
         'processed_pages',
 
         'total_items',
+        'api_total_items',
 
         'processed_items',
 
@@ -57,6 +58,7 @@ class CrawlTask extends Model
         'started_at' => 'datetime',
 
         'finished_at' => 'datetime',
+        'api_total_items' => 'integer',
     ];
 
     public function getDurationAttribute(): string
@@ -72,5 +74,10 @@ class CrawlTask extends Model
         $remainingSeconds = $seconds % 60;
 
         return "{$minutes}m {$remainingSeconds}s";
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(CrawlLog::class, 'crawl_task_id')->orderBy('created_at', 'asc');
     }
 }
