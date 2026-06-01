@@ -1,2 +1,268 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
+
+/* ─── Custom Theme Extensions ──────────────────────────── */
+@theme {
+    --font-sans: 'Inter', 'system-ui', '-apple-system', 'sans-serif';
+    --font-mono: 'JetBrains Mono', 'Menlo', 'monospace';
+    --color-zinc-850: #1f1f23;
+    --color-zinc-925: #121214;
+}
+
+/* ─── Dark Theme Variables ─────────────────────────────── */
+:root {
+    --background: #080C16;
+    --foreground: #F1F5F9;
+    --card: #161F2C;
+    --card-foreground: #F1F5F9;
+    --primary: #07B6D5;
+    --primary-foreground: #080C16;
+    --secondary: #1D283A;
+    --secondary-foreground: #F1F5F9;
+    --muted: #1D283A;
+    --muted-foreground: #7588A3;
+    --accent: #222F44;
+    --accent-foreground: #F1F5F9;
+    --border: #222F44;
+    --input: #222F44;
+    --ring: #07B6D5;
+    --success: #21C45D;
+    --warning: #F59F0A;
+    --destructive: #EF4343;
+    --sidebar-background: #05080F;
+}
+
+/* ─── Base ──────────────────────────────────────────────── */
+body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ─── Login Page Utilities ──────────────────────────────── */
+.grid-background {
+    background-image:
+        linear-gradient(rgba(7, 182, 213, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(7, 182, 213, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.glow-accent {
+    box-shadow: inset 0 1px 0 0 rgba(7, 182, 213, 0.1);
+}
+
+.input-base {
+    background-color: var(--input);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.9375rem;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.input-base::placeholder {
+    color: var(--muted-foreground);
+}
+
+.input-base:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px rgba(7, 182, 213, 0.1);
+    background-color: rgba(7, 182, 213, 0.02);
+}
+
+.input-base:hover {
+    border-color: rgba(7, 182, 213, 0.3);
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    font-size: 0.9375rem;
+    position: relative;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #06a3c4;
+    box-shadow: 0 8px 24px rgba(7, 182, 213, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(7, 182, 213, 0.2);
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.875rem;
+    transition: color 0.2s ease;
+}
+
+.btn-link:hover {
+    color: #06a3c4;
+    text-decoration: underline;
+}
+
+.card-premium {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(7, 182, 213, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--muted-foreground);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+.feature-check {
+    color: var(--success);
+    font-weight: 600;
+    min-width: 1.25rem;
+}
+
+.spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(7, 182, 213, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error-message {
+    color: var(--destructive);
+    font-size: 0.8125rem;
+    margin-top: 0.375rem;
+    display: block;
+}
+
+.label-text {
+    display: block;
+    color: var(--foreground);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+/* ─── Dashboard Utilities ──────────────────────────────── */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}
+
+/* Table sticky header shadow */
+.table-container {
+    position: relative;
+}
+
+.table-container::after {
+    content: '';
+    position: absolute;
+    top: 41px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.table-container.scrolled::after {
+    opacity: 1;
+}
+
+/* Pulse animation for status */
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Skeleton loading */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@media (max-width: 768px) {
+    .card-premium {
+        padding: 1.5rem;
+    }
+}

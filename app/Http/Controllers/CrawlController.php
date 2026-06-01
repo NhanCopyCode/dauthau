@@ -281,7 +281,7 @@ class CrawlController extends Controller
             $currentProgress = '✅ Hoàn tất';
         } elseif ($lastTask && $lastTask->status === 'failed') {
             $currentProgress = '❌ Thất bại';
-        }
+    }
 
         return response()->json([
             'total_items' => $totalItems,

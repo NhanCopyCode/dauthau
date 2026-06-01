@@ -1,7 +1,13 @@
-import initScrollToTop from './scroll-to-top';
-import './bootstrap';
+import "./bootstrap";
+import Alpine from "alpinejs";
+import initScrollToTop from "./scroll-to-top";
 
+// Make Alpine globally available for inline x-data usage
+window.Alpine = Alpine;
 
-document.addEventListener('DOMContentLoaded', () => {
+// Start Alpine
+Alpine.start();
+
+document.addEventListener("DOMContentLoaded", () => {
     initScrollToTop();
 });
