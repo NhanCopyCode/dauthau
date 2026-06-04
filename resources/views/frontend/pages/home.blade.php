@@ -6,7 +6,7 @@
         <div class="max-w-7xl mx-auto p-4 md:p-6">
 
             
-            <form method="GET" class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 space-y-4">
+            <form method="GET" class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 space-y-4 text-black">
 
                 <!-- ================= PRIMARY ================= -->
                 <div class="grid gap-3 md:gap-4 md:grid-cols-12">

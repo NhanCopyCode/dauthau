@@ -2,96 +2,90 @@
   <!-- SECTION 3: Crawl History Table -->
   <!-- ================================ -->
   <div x-data="crawlHistory" x-init="init()" class="bg-zinc-900 border border-zinc-800 rounded-xl">
+
       <div class="p-4 border-b border-zinc-800">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex flex-col gap-4">
+              <!-- Header -->
               <div>
                   <h2 class="text-sm font-semibold text-zinc-100">Lịch sử Crawl</h2>
                   <p class="text-xs text-zinc-500 mt-1">Danh sách các phiên thu thập gần đây</p>
               </div>
-              <div class="flex items-center gap-3">
-                  <!-- View State Toggle -->
-                  {{-- <div class="flex items-center gap-1 p-1 bg-zinc-800 rounded-lg">
-                      <button @click="tableViewState = 'data'"
-                          :class="tableViewState === 'data' ? 'bg-zinc-700 text-zinc-100' :
-                              'text-zinc-400 hover:text-zinc-100'"
-                          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors">Data</button>
-                      <button @click="tableViewState = 'loading'"
-                          :class="tableViewState === 'loading' ? 'bg-zinc-700 text-zinc-100' :
-                              'text-zinc-400 hover:text-zinc-100'"
-                          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors">Loading</button>
-                      <button @click="tableViewState = 'empty'"
-                          :class="tableViewState === 'empty' ? 'bg-zinc-700 text-zinc-100' :
-                              'text-zinc-400 hover:text-zinc-100'"
-                          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors">Empty</button>
-                  </div> --}}
-                  <!-- Search + Filters (submit as GET) -->
-                  <form method="GET" action="{{ url()->current() }}" class="flex items-center gap-3">
-                      <!-- Grouped filters: Data range (Khoảng dữ liệu crawl) and Crawl time (Thời gian crawl) -->
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <!-- Data range filter -->
-                          <div class="flex flex-col text-left">
-                              <label class="text-xs text-zinc-400 mb-1">Khoảng dữ liệu crawl</label>
-                              <div class="flex items-center gap-2">
-                                  <input type="date" name="from_date" x-model="fromDate" x-init="fromDate = '{{ request('from_date') }}'"
-                                      value="{{ request('from_date') }}"
-                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                  <input type="date" name="to_date" x-model="toDate" x-init="toDate = '{{ request('to_date') }}'"
-                                      value="{{ request('to_date') }}"
-                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                              </div>
-                          </div>
 
-                          <!-- Crawl run time filter -->
-                          <div class="flex flex-col text-left">
-                              <label class="text-xs text-zinc-400 mb-1">Thời gian crawl</label>
-                              <div class="flex items-center gap-2">
-                                  <input type="date" name="crawl_started_from" x-model="startedFrom"
-                                      x-init="startedFrom = '{{ request('crawl_started_from') }}'" value="{{ request('crawl_started_from') }}"
-                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                  <input type="date" name="crawl_started_to" x-model="startedTo"
-                                      x-init="startedTo = '{{ request('crawl_started_to') }}'" value="{{ request('crawl_started_to') }}"
-                                      class="h-9 w-36 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                              </div>
+              <!-- Form (AJAX: prevents full page reload) -->
+              <form @submit.prevent="applyFilters()" class="flex flex-col lg:flex-row lg:items-end gap-3">
+
+                  <!-- Filter Groups -->
+                  <div class="flex flex-col sm:flex-row gap-3 flex-1 min-w-0">
+
+                      <!-- Khoảng dữ liệu crawl -->
+                      <div class="flex flex-col gap-1 flex-1 min-w-0">
+                          <label class="text-xs text-zinc-400">Khoảng dữ liệu crawl</label>
+                          <div class="flex items-center gap-2">
+                              <input type="date" name="from_date" x-model="fromDate"
+                                  value="{{ request('from_date') }}"
+                                  class="h-9 flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              <span class="text-zinc-500 text-xs shrink-0">→</span>
+                              <input type="date" name="to_date" x-model="toDate" value="{{ request('to_date') }}"
+                                  class="h-9 flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                           </div>
                       </div>
 
-                      <!-- Actions -->
-                      <div class="flex items-center gap-2 ml-2">
-                          <button type="submit" class="h-9 px-3 bg-blue-600 text-white rounded-md text-sm">Tìm</button>
-                          <a href="{{ url()->current() }}"
-                              class="h-9 inline-flex items-center px-3 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md text-sm">Reset</a>
+                      <!-- Thời gian crawl -->
+                      <div class="flex flex-col gap-1 flex-1 min-w-0">
+                          <label class="text-xs text-zinc-400">Thời gian crawl</label>
+                          <div class="flex items-center gap-2">
+                              <input type="date" name="crawl_started_from" x-model="startedFrom"
+                                  value="{{ request('crawl_started_from') }}"
+                                  class="h-9 flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              <span class="text-zinc-500 text-xs shrink-0">→</span>
+                              <input type="date" name="crawl_started_to" x-model="startedTo"
+                                  value="{{ request('crawl_started_to') }}"
+                                  class="h-9 flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-lg px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          </div>
                       </div>
+                  </div>
 
-                      <!-- keep filter dropdown and bind to hidden input for form submit -->
-                      <div class="relative" x-data="{ open: false }">
-                          <input type="hidden" name="status" x-bind:value="tableFilter" x-init="tableFilter = '{{ request('status', 'all') }}'">
-                          <button type="button" @click="open = !open"
-                              class="flex items-center gap-2 h-9 px-3 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:text-zinc-100 transition-colors">
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <!-- Actions + Status Filter -->
+                  <div class="flex items-center gap-2 shrink-0">
+                      <!-- Status dropdown -->
+                      <div class="relative" @click.away="statusOpen = false">
+                          <input type="hidden" name="status" x-bind:value="tableFilter">
+                          <button type="button" @click="statusOpen = !statusOpen"
+                              class="flex items-center gap-2 h-9 px-3 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:text-zinc-100 transition-colors whitespace-nowrap">
+                              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                               </svg>
                               <span x-text="tableFilter === 'all' ? 'Tất cả' : tableFilter"></span>
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M19 9l-7 7-7-7" />
                               </svg>
                           </button>
-                          <div x-show="open" @click.away="open = false" x-transition
+                          <div x-show="statusOpen" x-transition
                               class="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20">
-                              <button type="button" @click="tableFilter = 'all'; open = false"
+                              <button type="button" @click="tableFilter = 'all'; statusOpen = false"
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Tất
                                   cả</button>
-                              <button type="button" @click="tableFilter = 'running'; open = false"
+                              <button type="button" @click="tableFilter = 'running'; statusOpen = false"
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Running</button>
-                              <button type="button" @click="tableFilter = 'completed'; open = false"
+                              <button type="button" @click="tableFilter = 'completed'; statusOpen = false"
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Completed</button>
-                              <button type="button" @click="tableFilter = 'failed'; open = false"
+                              <button type="button" @click="tableFilter = 'failed'; statusOpen = false"
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Failed</button>
                           </div>
                       </div>
-                  </form>
-              </div>
+
+                      <button type="submit"
+                          class="h-9 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                          Tìm
+                      </button>
+                      <button type="button" @click.prevent="resetFilters()"
+                          class="h-9 inline-flex items-center px-3 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-lg text-sm hover:text-zinc-100 transition-colors whitespace-nowrap">
+                          Reset
+                      </button>
+                  </div>
+              </form>
           </div>
       </div>
 
@@ -256,7 +250,7 @@
                             +
                             task.status.slice(1)
                             "></span>
-                                </span>
+                              </span>
                           </td>
 
                           <!-- RESULT -->
@@ -470,9 +464,9 @@
                       <button @click="(logLifecycleFilter='all', logsPage=1, fetchLogs())"
                           :class="logLifecycleFilter === 'all' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'"
                           class="px-2 py-1 rounded">All</button>
-                      <button @click="(logLifecycleFilter='running', logsPage=1, fetchLogs())"
-                          :class="logLifecycleFilter === 'running' ? 'bg-blue-700 text-zinc-100' : 'text-zinc-400'"
-                          class="px-2 py-1 rounded">Running</button>
+                      <button @click="(logLifecycleFilter='success', logsPage=1, fetchLogs())"
+                          :class="logLifecycleFilter === 'success' ? 'bg-emerald-700 text-zinc-900' : 'text-zinc-400'"
+                          class="px-2 py-1 rounded">Success</button>
                       <button @click="(logLifecycleFilter='failed', logsPage=1, fetchLogs())"
                           :class="logLifecycleFilter === 'failed' ? 'bg-red-600 text-zinc-100' : 'text-zinc-400'"
                           class="px-2 py-1 rounded">Failed</button>
@@ -599,15 +593,43 @@
                           / <span class="text-zinc-300" x-text="logsTotal"></span> logs
                       </div>
 
-                      <!-- Per-page selector -->
-                      <select @change="logsPerPage = parseInt($event.target.value); logsPage = 1; fetchLogs()"
-                          class="ml-3 h-7 bg-zinc-800 border border-zinc-700 rounded px-2 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                          <option value="25" :selected="logsPerPage === 25">25 / trang</option>
-                          <option value="50" :selected="logsPerPage === 50">50 / trang</option>
-                          <option value="100" :selected="logsPerPage === 100">100 / trang</option>
-                          <option value="200" :selected="logsPerPage === 200">200 / trang</option>
-                          <option value="500" :selected="logsPerPage === 500">500 / trang</option>
-                      </select>
+
+                      <div class="flex items-center gap-2">
+                          <select
+                              @change="
+                                    logsPerPage = parseInt($event.target.value);
+                                    logsPage = 1;
+                                    fetchLogs()
+                                "
+                              class="
+                                    h-8
+                                    min-w-[110px]
+                                    flex-shrink-0
+                                    appearance-none
+                                    bg-zinc-800
+                                    border border-zinc-700
+                                    rounded-md
+                                    px-3 pr-8
+                                    text-xs text-zinc-200
+                                    whitespace-nowrap
+                                    focus:outline-none
+                                    focus:ring-1
+                                    focus:ring-blue-500
+                                    hover:border-zinc-600
+                                    transition
+                                ">
+                              <option value="25">25 / trang</option>
+                              <option value="50">50 / trang</option>
+                              <option value="100" selected>100 / trang</option>
+                              <option value="200">200 / trang</option>
+                              <option value="500">500 / trang</option>
+                          </select>
+
+                          <!-- custom dropdown icon -->
+                          <div class="pointer-events-none -ml-7 text-zinc-400 text-[10px]">
+                              ▼
+                          </div>
+                      </div>
                   </div>
 
                   <div class="flex items-center justify-end gap-1 sm:gap-2">
@@ -656,6 +678,9 @@
                   // date range filter (YYYY-MM-DD strings)
                   fromDate: null,
                   toDate: null,
+                  startedFrom: null,
+                  startedTo: null,
+                  statusOpen: false,
 
                   loading: true,
                   error: null,
@@ -701,6 +726,15 @@
                   showRetryModal: false,
 
                   init() {
+                      // Initialize filters from URL if present
+                      const paramsInit = new URLSearchParams(window.location.search);
+                      this.fromDate = paramsInit.get('from_date') || null;
+                      this.toDate = paramsInit.get('to_date') || null;
+                      this.startedFrom = paramsInit.get('crawl_started_from') || null;
+                      this.startedTo = paramsInit.get('crawl_started_to') || null;
+                      this.tableFilter = paramsInit.get('status') || this.tableFilter;
+                      this.currentPage = parseInt(paramsInit.get('page')) || this.currentPage;
+
                       this.fetchHistory(true);
                       this.crawlStartedHandler =
                           () => {
@@ -808,6 +842,19 @@
                           params.set('page', this.currentPage);
                           params.set('per_page', this.perPage);
 
+                          // include UI filter values if present
+                          if (this.fromDate) params.set('from_date', this.fromDate);
+                          else params.delete('from_date');
+                          if (this.toDate) params.set('to_date', this.toDate);
+                          else params.delete('to_date');
+                          if (this.startedFrom) params.set('crawl_started_from', this.startedFrom);
+                          else params.delete('crawl_started_from');
+                          if (this.startedTo) params.set('crawl_started_to', this.startedTo);
+                          else params.delete('crawl_started_to');
+                          if (this.tableFilter && this.tableFilter !== 'all') params.set('status',
+                              this.tableFilter);
+                          else params.delete('status');
+
                           const response = await fetch(`/api/crawl/history?${params.toString()}`, {
                               headers: {
                                   Accept: 'application/json'
@@ -877,6 +924,56 @@
                       this.startPolling();
                   },
 
+                  applyFilters() {
+                      // reset to first page
+                      this.currentPage = 1;
+
+                      // update URL query params (keeps back/forward behavior)
+                      const params = new URLSearchParams(window.location.search);
+                      if (this.fromDate) params.set('from_date', this.fromDate);
+                      else params.delete('from_date');
+                      if (this.toDate) params.set('to_date', this.toDate);
+                      else params.delete('to_date');
+                      if (this.startedFrom) params.set('crawl_started_from', this.startedFrom);
+                      else params.delete('crawl_started_from');
+                      if (this.startedTo) params.set('crawl_started_to', this.startedTo);
+                      else params.delete('crawl_started_to');
+                      if (this.tableFilter && this.tableFilter !== 'all') params.set('status', this
+                          .tableFilter);
+                      else params.delete('status');
+                      params.set('page', this.currentPage);
+
+                      const newUrl = `${window.location.pathname}?${params.toString()}`;
+                      window.history.pushState({}, '', newUrl);
+
+                      // fetch with new filters
+                      this.fetchHistory(true);
+                  },
+
+                  resetFilters() {
+                      this.fromDate = null;
+                      this.toDate = null;
+                      this.startedFrom = null;
+                      this.startedTo = null;
+                      this.tableFilter = 'all';
+                      this.currentPage = 1;
+
+                      // Remove filter-related query params
+                      const params = new URLSearchParams(window.location.search);
+                      params.delete('from_date');
+                      params.delete('to_date');
+                      params.delete('crawl_started_from');
+                      params.delete('crawl_started_to');
+                      params.delete('status');
+                      params.set('page', this.currentPage);
+
+                      const newUrl = params.toString() ?
+                          `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+                      window.history.pushState({}, '', newUrl);
+
+                      this.fetchHistory(true);
+                  },
+
                   startPolling() {
 
                       this.stopPolling();
@@ -929,27 +1026,28 @@
                       if (!this.logs || this.logs.length === 0) return [];
                       let items = this.logs;
 
-                      // lifecycle filter: only support all / running / failed (no success tab)
+                      // lifecycle filter: support all / success / failed
                       if (this.logLifecycleFilter && this.logLifecycleFilter !== 'all') {
                           const want = this.logLifecycleFilter.toLowerCase();
 
-                          const isRunning = (l) => {
+                          const isSuccess = (l) => {
                               const ds = (l.derived_status || '').toString().trim().toLowerCase();
-                              if (ds === 'running') return true;
+                              if (ds === 'success') return true;
 
                               const ctxStatus = l.context && l.context.status ? String(l.context
                                   .status).toUpperCase() : '';
-                              if (ctxStatus && (ctxStatus.includes('START') || ctxStatus.includes(
-                                          'RUN') || ctxStatus.includes('PROCESS') || ctxStatus
-                                      .includes('BEGIN'))) return true;
+                              if (ctxStatus && (ctxStatus.includes('SUCCESS') || ctxStatus
+                                      .includes('COMPLETE') || ctxStatus.includes('COMPLETED') ||
+                                      ctxStatus.includes('DONE') || ctxStatus.includes('FINISH')))
+                                  return true;
 
                               const et = (l.event_type || '').toString().toUpperCase();
                               const msg = (l.message || '').toString().toUpperCase();
-                              return (et.includes('START') || et.includes('RUN') || et.includes(
-                                  'PROCESS') || et.includes('REQUEST') || msg.includes(
-                                  'START') || msg.includes('RUN') || msg.includes(
-                                  'PROCESS') || msg.includes('REQUEST') || msg.includes(
-                                  'RUNNING'));
+                              return (et.includes('SUCCESS') || et.includes('COMPLETE') || et
+                                  .includes('COMPLETED') || et.includes('DONE') || msg
+                                  .includes('SUCCESS') || msg.includes('COMPLETE') || msg
+                                  .includes('COMPLETED') || msg.includes('DONE') || msg
+                                  .includes('FINISHED'));
                           };
 
                           const isFailed = (l) => {
@@ -970,8 +1068,8 @@
                                   .includes('CRITICAL'));
                           };
 
-                          if (want === 'running') {
-                              items = items.filter(l => isRunning(l));
+                          if (want === 'success') {
+                              items = items.filter(l => isSuccess(l));
                           } else if (want === 'failed') {
                               items = items.filter(l => isFailed(l));
                           }
@@ -1312,7 +1410,7 @@
                       const newCount = processed - total;
                       const main = `${total}/${total} items`;
                       const extra =
-                          `<span class="ml-1 text-xs text-amber-400" title="Phát hiện dữ liệu mới trong lúc crawl">(+${newCount} mới)</span>`;
+                          `<span class="ml-1 text-xs text-amber-400" title="Phát hiện dữ liệu mới trong lúc crawl">(+${newCount} dữ liệu liên quan)</span>`;
                       return `${main} ${extra}`;
                   },
 

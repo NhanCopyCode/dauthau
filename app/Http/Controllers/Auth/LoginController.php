@@ -49,6 +49,7 @@ class LoginController extends Controller
             'password' => $request->input('password'),
         ];
 
+
         // Rate-limit check BEFORE authentication attempt
         if ($this->hasTooManyLoginAttempts($request)) {
             $seconds = $this->limiter()->availableIn($this->throttleKey($request));

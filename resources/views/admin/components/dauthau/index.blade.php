@@ -150,36 +150,93 @@
                                 <button x-show="unreadCount > 0" @click="markAllAsRead()"
                                     class="text-xs text-blue-400 hover:text-blue-300">Đã đọc tất cả</button>
                             </div>
+
                             <div class="max-h-72 overflow-y-auto">
                                 <template x-if="items.length === 0">
-                                    <div class="p-6 text-center text-sm text-zinc-500">Chưa có thông báo</div>
+                                    <div class="p-4 text-center text-sm text-zinc-500">Chưa có thông báo</div>
                                 </template>
+
                                 <template x-for="n in items" :key="n.id">
                                     <div @click="markAsRead(n.id)"
-                                        class="p-3 hover:bg-zinc-800/50 border-b border-zinc-800/50 cursor-pointer"
-                                        :class="n.read ? 'opacity-50' : ''">
-                                        <div class="flex gap-3">
-                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                        class="px-3 py-2.5 hover:bg-zinc-800/50 border-b border-zinc-800/40 cursor-pointer transition-opacity"
+                                        :class="{
+                                            'opacity-60': n.read,
+                                            'border-l-2 border-emerald-500': !n.read && n.type === 'completed',
+                                            'border-l-2 border-red-500/40': !n.read && n.type === 'failed',
+                                            'border-l-2 border-zinc-700': n.read,
+                                        }">
+                                        <div class="flex gap-3 items-start">
+
+                                            {{-- Icon --}}
+                                            <div class="flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center"
                                                 :class="n.type === 'completed' ? 'bg-emerald-500/10' : 'bg-red-500/10'">
                                                 <template x-if="n.type === 'completed'">
-                                                    <svg class="w-4 h-4 text-emerald-500" fill="none"
+                                                    <svg class="w-4 h-4 text-emerald-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2" d="M5 13l4 4L19 7" />
                                                     </svg>
                                                 </template>
                                                 <template x-if="n.type === 'failed'">
-                                                    <svg class="w-4 h-4 text-red-500" fill="none"
+                                                    <svg class="w-4 h-4 text-red-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2" d="M12 9v2m0 4h.01" />
                                                     </svg>
                                                 </template>
                                             </div>
-                                            <div class="min-w-0">
-                                                <p class="text-sm" :class="n.read ? 'text-zinc-400' : 'text-zinc-200'"
-                                                    x-text="n.message"></p>
-                                                <p class="text-xs text-zinc-600 mt-1" x-text="n.created_at"></p>
+
+                                            {{-- Content --}}
+                                            <div class="min-w-0 flex-1">
+
+                                                {{-- Row 1: type pill + date range (or message fallback) --}}
+                                                <template x-if="n.crawl">
+                                                    <div class="flex items-center gap-2">
+                                                        <span
+                                                            class="px-1.5 py-0.5 rounded-full text-[11px] font-medium"
+                                                            :class="n.crawl.type === 'daily' ?
+                                                                'bg-blue-500/10 text-blue-400' :
+                                                                (n.crawl.type === 'full' ?
+                                                                    'bg-violet-500/10 text-violet-400' :
+                                                                    (n.crawl.type === 'range' ?
+                                                                        'bg-amber-500/10 text-amber-400' :
+                                                                        'bg-zinc-800 text-zinc-400'))"
+                                                            x-text="n.crawl.label">
+                                                        </span>
+                                                        <p class="text-sm font-medium leading-tight truncate"
+                                                            :class="n.read ? 'text-zinc-400' : 'text-zinc-100'">
+                                                            <span
+                                                                x-text="n.crawl.date_range ? n.crawl.date_range : n.message"></span>
+                                                        </p>
+                                                    </div>
+                                                </template>
+
+                                                <template x-if="!n.crawl">
+                                                    <p class="text-sm font-medium leading-tight truncate"
+                                                        :class="n.read ? 'text-zinc-400' : 'text-zinc-100'"
+                                                        x-text="n.message"></p>
+                                                </template>
+
+                                                {{-- Row 2: [N mục] · [duration]    [time ago] --}}
+                                                <div class="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
+
+                                                    <span
+                                                        x-show="n.crawl && (n.crawl.total_items !== null && n.crawl.total_items !== undefined)"
+                                                        class="flex items-center gap-1">
+                                                        <span class="text-zinc-700">·</span>
+                                                        <span x-text="n.crawl.total_items + ' mục'"></span>
+                                                    </span>
+
+                                                    <span
+                                                        x-show="n.crawl && n.crawl.duration !== null && n.crawl.duration !== undefined && n.crawl.duration !== ''"
+                                                        class="flex items-center gap-1">
+                                                        <span class="text-zinc-700">·</span>
+                                                        <span x-text="n.crawl.duration"></span>
+                                                    </span>
+
+                                                    <span class="ml-auto text-zinc-600" x-text="n.created_at"></span>
+                                                </div>
+
                                             </div>
                                         </div>
                                     </div>
@@ -382,50 +439,50 @@
                         active: true,
                         icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>'
                     },
-                    {
-                        id: 'tenders',
-                        label: 'Tender Management',
-                        href: '#',
-                        active: false,
-                        icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
-                        badge: '24,532'
-                    },
-                    {
-                        id: 'history',
-                        label: 'Crawl History',
-                        href: '#',
-                        active: false,
-                        icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
-                    },
-                    {
-                        id: 'monitoring',
-                        label: 'Crawl Monitoring',
-                        href: '#',
-                        active: false,
-                        icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
-                    },
-                    {
-                        id: 'queue',
-                        label: 'Queue Status',
-                        href: '#',
-                        active: false,
-                        icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>',
-                        badge: '12'
-                    },
-                    {
-                        id: 'logs',
-                        label: 'Logs',
-                        href: '#',
-                        active: false,
-                        icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>'
-                    },
-                    {
-                        id: 'settings',
-                        label: 'Settings',
-                        href: '#',
-                        active: false,
-                        icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'
-                    }
+                    // {
+                    //     id: 'tenders',
+                    //     label: 'Tender Management',
+                    //     href: '#',
+                    //     active: false,
+                    //     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
+                    //     badge: '24,532'
+                    // },
+                    // {
+                    //     id: 'history',
+                    //     label: 'Crawl History',
+                    //     href: '#',
+                    //     active: false,
+                    //     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+                    // },
+                    // {
+                    //     id: 'monitoring',
+                    //     label: 'Crawl Monitoring',
+                    //     href: '#',
+                    //     active: false,
+                    //     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'
+                    // },
+                    // {
+                    //     id: 'queue',
+                    //     label: 'Queue Status',
+                    //     href: '#',
+                    //     active: false,
+                    //     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>',
+                    //     badge: '12'
+                    // },
+                    // {
+                    //     id: 'logs',
+                    //     label: 'Logs',
+                    //     href: '#',
+                    //     active: false,
+                    //     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>'
+                    // },
+                    // {
+                    //     id: 'settings',
+                    //     label: 'Settings',
+                    //     href: '#',
+                    //     active: false,
+                    //     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'
+                    // }
                 ],
 
                 // Current Time
@@ -676,7 +733,7 @@
                     }, 2000);
                 },
 
-                // Init
+                // Init     
                 init() {
                     // Update time every minute
                     setInterval(() => {
@@ -719,6 +776,7 @@
                         });
                         if (!res.ok) return;
                         const data = await res.json();
+                        console.log('Fetched notifications', data);
 
                         // Detect new notifications for toast
                         if (this.lastId > 0) {

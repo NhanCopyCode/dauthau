@@ -5,7 +5,7 @@
             <!---->
         </div>
         <div class="col-md-12 py-3 pl-3 {{ count($hntdts) > 0 ? 'hidden' : '' }}">
-            <div class="text-center">
+            <div class="text-center text-black">
                 Không có nội dung
             </div>
         </div>

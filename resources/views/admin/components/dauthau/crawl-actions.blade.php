@@ -1,9 +1,9 @@
   <!-- ================================ -->
   <!-- SECTION 2: Crawl Actions Panel -->
   <!-- ================================ -->
-  <div x-data="crawlActions" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div x-data="crawlActions" class="flex flex-col lg:flex-row items-stretch gap-6">
       <!-- Quick Actions -->
-      <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl flex-1">
           <div class="p-4 border-b border-zinc-800">
               <h2 class="text-sm font-semibold text-zinc-100">Thao tác nhanh</h2>
               <p class="text-xs text-zinc-500 mt-1">Khởi chạy các tác vụ thu thập dữ liệu</p>
@@ -97,7 +97,7 @@
       <!-- ================================ -->
       <!-- SECTION 5: Queue Health Widget -->
       <!-- ================================ -->
-      <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
+      {{-- <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
           <div class="p-4 border-b border-zinc-800">
               <h2 class="text-sm font-semibold text-zinc-100">Queue Health</h2>
               <p class="text-xs text-zinc-500 mt-1">Trạng thái các hàng đợi xử lý</p>
@@ -141,7 +141,7 @@
                   </div>
               </template>
           </div>
-      </div>
+      </div> --}}
   </div>
 
 

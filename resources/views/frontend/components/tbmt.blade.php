@@ -85,7 +85,7 @@
                        Khuyến nghị việc tham dự thầu:
                    </p>
 
-                   <p class="text-sm mt-2">
+                   <p class="text-sm mt-2 text-black">
                        Khuyến nghị nhà thầu cần nộp thầu sớm để có thời gian khắc phục,
                        hỗ trợ trong trường hợp lỗi kỹ thuật hoặc sự cố gần thời điểm đóng thầu.
                    </p>

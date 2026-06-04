@@ -3,7 +3,7 @@
           @foreach ($tenders as $tender)
               <div
                   class="block bg-white border border-gray-200 rounded-2xl p-4 md:p-5 
-                     hover:shadow-lg hover:border-blue-300 transition duration-200">
+                     hover:shadow-lg hover:border-blue-300 transition duration-200 text-black">
 
                   <!-- ================= HEADER ================= -->
                   <div class="flex items-center justify-between mb-2">
