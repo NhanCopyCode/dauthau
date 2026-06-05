@@ -56,7 +56,7 @@
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                               </svg>
-                              <span x-text="tableFilter === 'all' ? 'Tất cả' : tableFilter"></span>
+                              <span x-text="tableFilter === 'all' ? 'Tất cả' : formatStatus(tableFilter)"></span>
                               <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M19 9l-7 7-7-7" />
@@ -71,6 +71,9 @@
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Running</button>
                               <button type="button" @click="tableFilter = 'completed'; statusOpen = false"
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Completed</button>
+                              <button type="button" @click="tableFilter = 'completed_with_errors'; statusOpen = false"
+                                  class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Completed
+                                  (with errors)</button>
                               <button type="button" @click="tableFilter = 'failed'; statusOpen = false"
                                   class="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100">Failed</button>
                           </div>
@@ -156,6 +159,10 @@
                           <th class="text-left text-xs font-medium text-zinc-500 uppercase tracking-wide px-4 py-3">
                               Kết quả
 
+                          <th class="text-left text-xs font-medium text-zinc-500 uppercase tracking-wide px-4 py-3">
+                              Lỗi
+                          </th>
+
                           <th class="text-right text-xs font-medium text-zinc-500 uppercase tracking-wide px-4 py-3">
                               Thao tác
                           </th>
@@ -228,28 +235,20 @@
                               <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
                                   :class="{
                                       'bg-emerald-500/10 text-emerald-500': task.status === 'completed',
-                                  
+                                      'bg-amber-500/10 text-amber-400': task.status === 'completed_with_errors',
                                       'bg-blue-500/10 text-blue-400': task.status === 'running',
-                                  
                                       'bg-red-500/10 text-red-500': task.status === 'failed'
                                   }">
 
                                   <span class="w-1.5 h-1.5 rounded-full"
                                       :class="{
                                           'bg-emerald-500': task.status === 'completed',
-                                      
+                                          'bg-amber-400': task.status === 'completed_with_errors',
                                           'bg-blue-400 animate-pulse': task.status === 'running',
-                                      
                                           'bg-red-500': task.status === 'failed'
                                       }"></span>
 
-                                  <span
-                                      x-text="
-                            task.status.charAt(0)
-                            .toUpperCase()
-                            +
-                            task.status.slice(1)
-                            "></span>
+                                  <span x-text="formatStatus(task.status)"></span>
                               </span>
                           </td>
 
@@ -258,29 +257,53 @@
                               <span class="text-sm text-zinc-300" x-html="formatResult(task)"></span>
                           </td>
 
+                          <!-- FAILED ITEMS -->
+                          <td class="px-4 py-3">
+                              <span class="text-sm text-red-400 font-mono" x-text="(task.failed_items || 0)"></span>
+                          </td>
+
                           <!-- ACTION -->
                           <td class="px-4 py-3">
                               <div class="flex items-center justify-end gap-1">
 
-                                  <!-- View -->
-                                  <button
-                                      class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
-                                      @click="window.dispatchEvent(new CustomEvent('open-task-detail', { detail: task }))"
-                                      title="Xem chi tiết">
-                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                    3 3 0 016 0z" />
+                                  <!-- View (only for authenticated users) -->
+                                  @auth
+                                      <button
+                                          class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
+                                          @click="window.dispatchEvent(new CustomEvent('open-task-detail', { detail: task }))"
+                                          title="Xem chi tiết">
+                                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
+                                                        3 3 0 016 0z" />
 
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                    7.523 5 12 5
-                                                    c4.478 0 8.268 2.943
-                                                    9.542 7
-                                                    -1.274 4.057-5.064 7
-                                                    -9.542 7
-                                                    -4.477 0-8.268-2.943
-                                                    -9.542-7z" />
-                                      </svg>
-                                  </button>
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
+                                                        7.523 5 12 5
+                                                        c4.478 0 8.268 2.943
+                                                        9.542 7
+                                                        -1.274 4.057-5.064 7
+                                                        -9.542 7
+                                                        -4.477 0-8.268-2.943
+                                                        -9.542-7z" />
+                                          </svg>
+                                      </button>
+                                  @else
+                                      <a href="{{ route('login') }}"
+                                          class="p-1.5 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-colors"
+                                          title="Đăng nhập để xem chi tiết">
+                                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
+                                                        3 3 0 016 0z" />
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
+                                                        7.523 5 12 5
+                                                        c4.478 0 8.268 2.943
+                                                        9.542 7
+                                                        -1.274 4.057-5.064 7
+                                                        -9.542 7
+                                                        -4.477 0-8.268-2.943
+                                                        -9.542-7z" />
+                                          </svg>
+                                      </a>
+                                  @endauth
 
                                   <!-- Retry -->
                                   <template x-if="task.status === 'failed'">
@@ -429,17 +452,20 @@
                               :class="{
                                   'bg-emerald-500/10 text-emerald-500': selectedTask && selectedTask
                                       .status === 'completed',
+                                  'bg-amber-500/10 text-amber-400': selectedTask && selectedTask
+                                      .status === 'completed_with_errors',
                                   'bg-blue-500/10 text-blue-400': selectedTask && selectedTask.status === 'running',
                                   'bg-red-500/10 text-red-500': selectedTask && selectedTask.status === 'failed'
                               }">
                               <span class="w-1.5 h-1.5 rounded-full"
                                   :class="{
                                       'bg-emerald-500': selectedTask && selectedTask.status === 'completed',
+                                      'bg-amber-400': selectedTask && selectedTask.status === 'completed_with_errors',
                                       'bg-blue-400 animate-pulse': selectedTask && selectedTask.status === 'running',
                                       'bg-red-500': selectedTask && selectedTask.status === 'failed'
                                   }"></span>
-                              <span
-                                  x-text="selectedTask ? (selectedTask.status.charAt(0).toUpperCase() + selectedTask.status.slice(1)) : '-'"></span>
+                              <span x-text="selectedTask ? formatStatus(selectedTask.status) : '-'">
+                              </span>
                           </span>
                       </div>
                   </div>
@@ -756,6 +782,19 @@
                               this.now =
                                   Date.now();
                           }, 1000);
+                  },
+
+                  formatStatus(status) {
+                      if (!status) return '-';
+                      const maps = {
+                          'completed_with_errors': 'Completed with errors',
+                          'completed': 'Completed',
+                          'running': 'Running',
+                          'failed': 'Failed',
+                          'pending': 'Pending'
+                      };
+                      if (maps[status]) return maps[status];
+                      return status.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
                   },
 
                   destroy() {
@@ -1146,8 +1185,10 @@
                       try {
                           const resp = await fetch(
                               `/crawl-tasks/${this.selectedTask.id}/logs?page=${this.logsPage}&per_page=${this.logsPerPage}&lifecycle=${encodeURIComponent(this.logLifecycleFilter || 'all')}`, {
+                                  credentials: 'same-origin',
                                   headers: {
-                                      Accept: 'application/json'
+                                      'Accept': 'application/json',
+                                      'X-Requested-With': 'XMLHttpRequest'
                                   }
                               });
                           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -1396,7 +1437,8 @@
                       const total = Number(task.total_items || 0);
 
                       // If task completed, normalize to final snapshot
-                      if ((task.status || '').toString().toLowerCase() === 'completed') {
+                      const status = (task.status || '').toString().toLowerCase();
+                      if (status === 'completed' || status === 'completed_with_errors') {
                           const t = total;
                           return `${t}/${t} items`;
                       }

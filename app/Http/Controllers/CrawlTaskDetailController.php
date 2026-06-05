@@ -30,6 +30,7 @@ class CrawlTaskDetailController extends Controller
             'pending' => 'Pending',
             'running' => 'Running',
             'completed' => 'Completed',
+            'completed_with_errors' => 'Completed (with errors)',
             'failed' => 'Failed',
         ];
 
@@ -47,6 +48,7 @@ class CrawlTaskDetailController extends Controller
                 'to' => optional($task->to_date)->format('Y-m-d'),
             ],
             'error' => $task->error,
+            'failed_items' => (int) ($task->failed_items ?? 0),
         ];
 
         // Metrics
@@ -109,6 +111,7 @@ class CrawlTaskDetailController extends Controller
                 'timeout' => $timeoutCount,
                 'error_count' => $errorCount,
                 'retry_count' => $retryCount,
+                'failed_items' => (int) ($task->failed_items ?? 0),
             ],
         ];
 

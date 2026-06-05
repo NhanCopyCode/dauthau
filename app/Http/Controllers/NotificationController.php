@@ -47,7 +47,7 @@ class NotificationController extends Controller
                             $dateRange = $dateRange;
                         }
                     }
-                   
+
 
                     // Human-friendly type labels (Vietnamese)
                     $typeLabels = [
@@ -85,6 +85,7 @@ class NotificationController extends Controller
                             return $minutesRem > 0 ? "{$hours} giờ {$minutesRem} phút" : "{$hours} giờ";
                         })(),
                         'total_items' => $t->processed_items ?? $t->total_items ?? null,
+                        'failed_items' => (int) ($t->failed_items ?? 0),
                         'status' => $t->status ?? null,
                         'crawl_url' => url("/crawl-tasks/{$t->id}"),
                     ];

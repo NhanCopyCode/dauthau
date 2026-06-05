@@ -117,9 +117,8 @@ class CrawlTenderHsmtJob implements ShouldQueue
 
             $service->handle($tender->id);
 
-            // mark hsmt job as processed
-            DB::table('crawl_tasks')->where('id', $this->taskId)
-                ->update(['processed_items' => DB::raw('processed_items + 1')]);
+            // mark hsmt job as processed (atomic)
+            $this->incrementProcessedItemsIfNeeded();
 
             $tracker->jobFinished($this->taskId);
         } catch (\Throwable $e) {
@@ -138,9 +137,8 @@ class CrawlTenderHsmtJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        // count as processed on permanent failure
-        DB::table('crawl_tasks')->where('id', $this->taskId)
-            ->update(['processed_items' => DB::raw('processed_items + 1')]);
+        // count as processed and failed on permanent failure (atomic)
+        $this->incrementProcessedAndFailedIfNeeded();
 
         app(CrawlTracker::class)->jobFinished($this->taskId);
         $logger = app(CrawlLogger::class);
@@ -151,5 +149,49 @@ class CrawlTenderHsmtJob implements ShouldQueue
             'error' => $e->getMessage(),
             'exception' => $e,
         ], 'hsmt');
+    }
+
+    private function incrementProcessedItemsIfNeeded(): void
+    {
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update(['processed_items' => $processed + 1]);
+        });
+    }
+
+    private function incrementProcessedAndFailedIfNeeded(): void
+    {
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+            $failed = (int) ($task->failed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update([
+                    'processed_items' => $processed + 1,
+                    'failed_items' => $failed + 1,
+                ]);
+        });
     }
 }

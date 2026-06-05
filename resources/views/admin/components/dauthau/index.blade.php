@@ -144,11 +144,11 @@
                             x-transition:leave="transition ease-in duration-100"
                             x-transition:leave-start="opacity-100 translate-y-0"
                             x-transition:leave-end="opacity-0 translate-y-1"
-                            class="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50">
+                            class="absolute right-0 mt-2 w-[360px] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50">
                             <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
                                 <h3 class="text-sm font-semibold text-zinc-100">Thông báo</h3>
                                 <button x-show="unreadCount > 0" @click="markAllAsRead()"
-                                    class="text-xs text-blue-400 hover:text-blue-300">Đã đọc tất cả</button>
+                                    class="text-xs text-blue-400 hover:text-blue-300 cursor-pointer">Đã đọc tất cả</button>
                             </div>
 
                             <div class="max-h-72 overflow-y-auto">
@@ -162,6 +162,8 @@
                                         :class="{
                                             'opacity-60': n.read,
                                             'border-l-2 border-emerald-500': !n.read && n.type === 'completed',
+                                            'border-l-2 border-amber-400': !n.read && n
+                                                .type === 'completed_with_errors',
                                             'border-l-2 border-red-500/40': !n.read && n.type === 'failed',
                                             'border-l-2 border-zinc-700': n.read,
                                         }">
@@ -169,12 +171,22 @@
 
                                             {{-- Icon --}}
                                             <div class="flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center"
-                                                :class="n.type === 'completed' ? 'bg-emerald-500/10' : 'bg-red-500/10'">
+                                                :class="(n.type === 'completed' ? 'bg-emerald-500/10' : (n
+                                                    .type === 'completed_with_errors' ? 'bg-amber-500/10' :
+                                                    'bg-red-500/10'))">
                                                 <template x-if="n.type === 'completed'">
                                                     <svg class="w-4 h-4 text-emerald-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </template>
+                                                <template x-if="n.type === 'completed_with_errors'">
+                                                    <svg class="w-4 h-4 text-amber-400" fill="none"
+                                                        stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M12 8v4m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
                                                     </svg>
                                                 </template>
                                                 <template x-if="n.type === 'failed'">
@@ -207,6 +219,11 @@
                                                             :class="n.read ? 'text-zinc-400' : 'text-zinc-100'">
                                                             <span
                                                                 x-text="n.crawl.date_range ? n.crawl.date_range : n.message"></span>
+                                                            <template
+                                                                x-if="n.crawl && n.crawl.failed_items && n.crawl.failed_items > 0">
+                                                                <span class="ml-2 text-xs text-red-400 font-mono"
+                                                                    x-text="'Failed: ' + n.crawl.failed_items"></span>
+                                                            </template>
                                                         </p>
                                                     </div>
                                                 </template>
@@ -256,12 +273,21 @@
                                 :style="`bottom: ${1 + idx * 4.5}rem`">
                                 <div class="p-4 flex items-start gap-3">
                                     <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                        :class="toast.type === 'completed' ? 'bg-emerald-500/10' : 'bg-red-500/10'">
+                                        :class="(toast.type === 'completed' ? 'bg-emerald-500/10' : (toast
+                                            .type === 'completed_with_errors' ? 'bg-amber-500/10' : 'bg-red-500/10'
+                                            ))">
                                         <template x-if="toast.type === 'completed'">
                                             <svg class="w-4 h-4 text-emerald-500" fill="none"
                                                 stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </template>
+                                        <template x-if="toast.type === 'completed_with_errors'">
+                                            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 8v4m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
                                             </svg>
                                         </template>
                                         <template x-if="toast.type === 'failed'">
@@ -274,7 +300,9 @@
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium"
-                                            :class="toast.type === 'completed' ? 'text-emerald-400' : 'text-red-400'"
+                                            :class="(toast.type === 'completed' ? 'text-emerald-400' : (toast
+                                                .type === 'completed_with_errors' ? 'text-amber-400' :
+                                                'text-red-400'))"
                                             x-text="toast.message"></p>
                                         <p class="text-xs text-zinc-500 mt-0.5" x-text="toast.created_at"></p>
                                     </div>

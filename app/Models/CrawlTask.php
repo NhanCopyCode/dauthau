@@ -7,58 +7,39 @@ use Illuminate\Database\Eloquent\Model;
 
 class CrawlTask extends Model
 {
-
     public const TYPE_FULL = 'full';
-
     public const TYPE_DAILY = 'daily';
-
     public const TYPE_RANGE = 'range';
 
-
     public const STATUS_PENDING = 'pending';
-
     public const STATUS_RUNNING = 'running';
-
     public const STATUS_COMPLETED = 'completed';
-
     public const STATUS_FAILED = 'failed';
+    public const STATUS_COMPLETED_WITH_ERRORS = 'completed_with_errors';
 
     protected $fillable = [
-
         'type',
-
         'status',
-
         'from_date',
-
         'to_date',
-
         'total_pages',
-
         'processed_pages',
-
         'total_items',
         'api_total_items',
-
         'processed_items',
-
+        'failed_items',
         'started_at',
-
         'finished_at',
-
         'error',
     ];
 
     protected $casts = [
-
         'from_date' => 'datetime',
-
         'to_date' => 'datetime',
-
         'started_at' => 'datetime',
-
         'finished_at' => 'datetime',
         'api_total_items' => 'integer',
+        'failed_items' => 'integer',
     ];
 
     public function getDurationAttribute(): string

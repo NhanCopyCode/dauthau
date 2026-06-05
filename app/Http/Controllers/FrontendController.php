@@ -341,13 +341,16 @@ class FrontendController extends Controller
                 'processed_items' =>
                 $task->processed_items ?? 0,
 
+                'failed_items' =>
+                $task->failed_items ?? 0,
+
                 'total_items' =>
                 $task->total_items ?? 0,
 
                 'error' => $task->error,
             ]);
 
-        
+
         return view(
             'admin.components.dauthau.index',
             [

@@ -11,7 +11,7 @@
                     <div class="text-xs text-zinc-400 mt-1">
                         <span x-text="task?.display_type || (task?.type || '')"></span>
                         <span class="mx-2">•</span>
-                        <span x-text="task?.display_status || (task?.status || '')"></span>
+                        <span x-text="formatStatus(task?.status)"></span>
                     </div>
                 </div>
                 <div>
@@ -56,6 +56,8 @@
                         <div class="text-sm text-zinc-200 font-semibold"
                             x-text="metrics.items.processed.toLocaleString()"></div>
                         <div class="text-xs text-zinc-500">requests đã gửi</div>
+                        <div class="text-xs text-zinc-500">Lỗi: <span class="text-red-400"
+                                x-text="task?.failed_items || 0"></span></div>
                     </div>
                     <div class="p-3 bg-zinc-900 border border-zinc-800 rounded">
                         <div class="text-xs text-zinc-400">Pages</div>
@@ -76,7 +78,18 @@
                                 <span>✅</span> Hoàn tất
                             </div>
                         </template>
-                        <template x-if="task?.status === 'failed' || (task?.status === 'completed' && task?.error)">
+
+                        <template x-if="task?.status === 'completed_with_errors'">
+                            <div class="text-sm text-amber-400 font-semibold flex items-center gap-2">
+                                <span>⚠️</span>
+                                <span>Completed with errors</span>
+                                <span class="text-xs text-zinc-400">(</span>
+                                <span class="text-xs text-red-400 font-mono" x-text="task?.failed_items || 0"></span>
+                                <span class="text-xs text-zinc-400"> failed)</span>
+                            </div>
+                        </template>
+
+                        <template x-if="task?.status === 'failed'">
                             <div class="text-sm text-red-400 font-semibold flex items-start gap-1">
                                 <span>❌</span>
                                 <span class="break-words" x-text="task?.error || 'Có lỗi xảy ra'"></span>
@@ -192,8 +205,10 @@
                     try {
                         const resp = await fetch(
                             `/crawl-tasks/${taskId}/detail`, {
+                                credentials: 'same-origin',
                                 headers: {
-                                    Accept: 'application/json'
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
                                 }
                             });
                         if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -213,8 +228,10 @@
                     if (this.debugVisible && this.logs.length === 0 && this.task) {
                         try {
                             const resp = await fetch(`/crawl-tasks/${this.task.id}/detail?debug=1`, {
+                                credentials: 'same-origin',
                                 headers: {
-                                    Accept: 'application/json'
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
                                 }
                             });
                             if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -225,6 +242,19 @@
                             alert('Không thể tải debug logs: ' + (err.message || ''));
                         }
                     }
+                },
+
+                formatStatus(status) {
+                    if (!status) return '-';
+                    const maps = {
+                        'completed_with_errors': 'Completed with errors',
+                        'completed': 'Completed',
+                        'running': 'Running',
+                        'failed': 'Failed',
+                        'pending': 'Pending'
+                    };
+                    if (maps[status]) return maps[status];
+                    return String(status).split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
                 },
 
 

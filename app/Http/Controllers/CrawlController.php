@@ -188,6 +188,7 @@ class CrawlController extends Controller
                 'finished_at' => optional($task->finished_at)->format('Y-m-d H:i:s'),
 
                 'processed_items' => $task->processed_items ?? 0,
+                'failed_items' => $task->failed_items ?? 0,
 
                 // surface the API-reported number of tenders for this task
                 'total_items' => $task->api_total_items ?? 0,
@@ -277,11 +278,13 @@ class CrawlController extends Controller
 
         if ($runningJobs > 0) {
             $currentProgress = '⏳ Đang crawl...';
-        } elseif ($lastTask && $lastTask->status === 'completed') {
+        } elseif ($lastTask && $lastTask->status === CrawlTask::STATUS_COMPLETED) {
             $currentProgress = '✅ Hoàn tất';
-        } elseif ($lastTask && $lastTask->status === 'failed') {
+        } elseif ($lastTask && $lastTask->status === CrawlTask::STATUS_COMPLETED_WITH_ERRORS) {
+            $currentProgress = '✅ Hoàn tất (có lỗi)';
+        } elseif ($lastTask && $lastTask->status === CrawlTask::STATUS_FAILED) {
             $currentProgress = '❌ Thất bại';
-    }
+        }
 
         return response()->json([
             'total_items' => $totalItems,

@@ -65,9 +65,8 @@ class CrawlTenderSubResourceJob implements ShouldQueue
                 default => null
             };
 
-            // mark this subresource as processed
-            DB::table('crawl_tasks')->where('id', $this->taskId)
-                ->update(['processed_items' => DB::raw('processed_items + 1')]);
+            // mark this subresource as processed (atomic)
+            $this->incrementProcessedItemsIfNeeded();
 
             $tracker->jobFinished($this->taskId);
         } catch (\Throwable $e) {
@@ -89,28 +88,63 @@ class CrawlTenderSubResourceJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        // ensure we count the subresource as finished even when it failed permanently
-        DB::table('crawl_tasks')->where('id', $this->taskId)
-            ->update(['processed_items' => DB::raw('processed_items + 1')]);
+        // count as processed and failed on permanent failure (atomic)
+        $this->incrementProcessedAndFailedIfNeeded();
 
         app(CrawlTracker::class)->jobFinished($this->taskId);
 
         Log::critical(
             "SubResource {$this->type} permanently failed",
             [
-
-                'task_id' =>
-                $this->taskId,
-
-                'tender_id' =>
-                $this->tenderId,
-
-                'attempts' =>
-                $this->attempts(),
-
-                'error' =>
-                $e->getMessage(),
+                'task_id' => $this->taskId,
+                'tender_id' => $this->tenderId,
+                'attempts' => $this->attempts(),
+                'error' => $e->getMessage(),
             ]
         );
+    }
+
+    private function incrementProcessedItemsIfNeeded(): void
+    {
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update(['processed_items' => $processed + 1]);
+        });
+    }
+
+    private function incrementProcessedAndFailedIfNeeded(): void
+    {
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+            $failed = (int) ($task->failed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update([
+                    'processed_items' => $processed + 1,
+                    'failed_items' => $failed + 1,
+                ]);
+        });
     }
 }

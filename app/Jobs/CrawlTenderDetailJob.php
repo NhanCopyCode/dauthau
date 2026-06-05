@@ -37,6 +37,11 @@ class CrawlTenderDetailJob implements ShouldQueue
 
     public function backoff(): array
     {
+
+        // if (app()->environment('local')) {
+        //     return [1, 1];
+        // }
+
         return [
             30,
             120,
@@ -45,7 +50,7 @@ class CrawlTenderDetailJob implements ShouldQueue
         ];
     }
 
-   
+
     public function handle(
         TenderDetailCrawlerService $service
     ): void {
@@ -56,6 +61,8 @@ class CrawlTenderDetailJob implements ShouldQueue
         $tender = Tender::find(
             $this->tenderId
         );
+
+
 
         if (!$tender) {
             $logger->warning($this->taskId, 'Tender not found', [
@@ -68,6 +75,15 @@ class CrawlTenderDetailJob implements ShouldQueue
         }
 
         try {
+
+            // if (
+            //     app()->environment('local')
+            //     && $tender->id % 10 === 0
+            // ) {
+            //     throw new TemporaryCrawlerException(
+            //         'cURL error 28: Operation timed out'
+            //     );
+            // }
 
             $logger->info($this->taskId, 'DETAIL CRAWL START', [
                 'tender_id' => $tender->id,
@@ -102,9 +118,8 @@ class CrawlTenderDetailJob implements ShouldQueue
                 'tender_id' => $tender->id,
             ], 'detail');
 
-            // mark this detail job as processed in the task counters
-            DB::table('crawl_tasks')->where('id', $this->taskId)
-                ->update(['processed_items' => DB::raw('processed_items + 1')]);
+            // mark this detail job as processed in the task counters (atomic)
+            $this->incrementProcessedItemsIfNeeded();
 
             $tracker->jobFinished($this->taskId);
         } catch (
@@ -137,14 +152,64 @@ class CrawlTenderDetailJob implements ShouldQueue
         Throwable $e
     ): void {
         $logger = app(CrawlLogger::class);
-        // ensure this job counts as processed even on permanent failure
-        DB::table('crawl_tasks')->where('id', $this->taskId)
-            ->update(['processed_items' => DB::raw('processed_items + 1')]);
+        // ensure this job counts as processed and recorded as failed (atomic)
+        $this->incrementProcessedAndFailedIfNeeded();
+
+        app(CrawlTracker::class)
+            ->jobFinished(
+                $this->taskId
+            );
 
         $logger->error($this->taskId, 'DETAIL JOB FAILED PERMANENTLY', [
             'tender_id' => $this->tenderId,
             'error' => $e->getMessage(),
             'exception' => $e,
         ], 'detail');
+    }
+
+    private function incrementProcessedAndFailedIfNeeded(): void
+    {
+        // increment both processed_items and failed_items atomically
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+            $failed = (int) ($task->failed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update([
+                    'processed_items' => $processed + 1,
+                    'failed_items' => $failed + 1,
+                ]);
+        });
+    }
+
+    private function incrementProcessedItemsIfNeeded(): void
+    {
+        // use transaction + row lock to avoid race conditions between workers
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update(['processed_items' => $processed + 1]);
+        });
     }
 }

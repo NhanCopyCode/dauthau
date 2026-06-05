@@ -155,8 +155,15 @@ class CrawlTracker
                     2
                 );
 
-                CrawlTask::find($taskId)?->update([
-                    'status' => 'completed',
+                $taskModel = CrawlTask::find($taskId);
+                $status = CrawlTask::STATUS_COMPLETED;
+
+                if ($taskModel && ($taskModel->failed_items ?? 0) > 0) {
+                    $status = CrawlTask::STATUS_COMPLETED_WITH_ERRORS;
+                }
+
+                $taskModel?->update([
+                    'status' => $status,
                     'finished_at' => now(),
                 ]);
 
