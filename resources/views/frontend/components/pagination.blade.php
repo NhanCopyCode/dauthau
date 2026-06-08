@@ -21,7 +21,7 @@
     sort($pages);
 @endphp
 
-<div class="flex items-center justify-between">
+<div class="flex items-center justify-between text-black">
     <p class="text-[14px]">Tìm thấy <span class="font-bold">{{ number_format($totalTenders) }}</span> kết quả</p>
     @if ($last > 1)
         <div class="flex flex-col items-end justify-between gap-3 mt-4">
