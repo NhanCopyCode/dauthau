@@ -90,113 +90,122 @@ class CrawlTracker
         int $taskId
     ): void {
 
-        $lock = Cache::lock(
+        // ── No Cache::lock here ────────────────────────────────────
+        // Cache locks are unreliable with the `database` driver (GET_LOCK
+        // can silently fail under concurrent queue workers). Instead we
+        // use the `completed_logged` flag + task DB status as guards.
+        // This is safe because the final DB update is idempotent.
+
+        // Fast-path: completed_logged already true → verify task state
+        $alreadyLogged = Cache::get(
+            $this->key($taskId, 'completed_logged'),
+            false
+        );
+        if ($alreadyLogged) {
+            $taskCheck = CrawlTask::find($taskId);
+            if ($taskCheck && !in_array($taskCheck->status, [
+                CrawlTask::STATUS_COMPLETED,
+                CrawlTask::STATUS_COMPLETED_WITH_ERRORS,
+                CrawlTask::STATUS_FAILED,
+            ], true)) {
+                // Task was reset to a non-terminal state → allow re-completion
+                Cache::put($this->key($taskId, 'completed_logged'), false);
+            } else {
+                return; // Already properly completed
+            }
+        }
+
+        $outstanding = Cache::get(
             $this->key(
                 $taskId,
-                'completion_lock'
+                'outstanding'
             ),
-            10
+            0
         );
 
-        try {
+        $producerDone = Cache::get(
+            $this->key(
+                $taskId,
+                'producer_done'
+            ),
+            false
+        );
 
-            if (!$lock->get()) {
+        if (
+            $producerDone &&
+            $outstanding <= 0
+        ) {
+
+            // Double-check completed_logged again (race-safe after our reset above)
+            if (Cache::get($this->key($taskId, 'completed_logged'), false)) {
                 return;
             }
 
-            if (
-                Cache::get(
-                    $this->key(
-                        $taskId,
-                        'completed_logged'
-                    )
-                )
-            ) {
-                return;
-            }
-
-            $outstanding = Cache::get(
+            Cache::put(
                 $this->key(
                     $taskId,
-                    'outstanding'
+                    'completed_logged'
                 ),
-                0
+                true
             );
 
-            $producerDone = Cache::get(
-                $this->key(
-                    $taskId,
-                    'producer_done'
-                ),
-                false
-            );
-
-            if (
-                $producerDone &&
-                $outstanding <= 0
-            ) {
-
-                Cache::put(
-                    $this->key(
-                        $taskId,
-                        'completed_logged'
+            $duration = round(
+                microtime(true)
+                    - Cache::get(
+                        $this->key(
+                            $taskId,
+                            'started_at'
+                        )
                     ),
-                    true
-                );
+                2
+            );
 
-                $duration = round(
-                    microtime(true)
-                        - Cache::get(
-                            $this->key(
-                                $taskId,
-                                'started_at'
-                            )
-                        ),
-                    2
-                );
+            $taskModel = CrawlTask::find($taskId);
+            $status = CrawlTask::STATUS_COMPLETED;
 
-                $taskModel = CrawlTask::find($taskId);
-                $status = CrawlTask::STATUS_COMPLETED;
+            if ($taskModel) {
+                $failedItems = (int) ($taskModel->failed_items ?? 0);
+                $processedItems = (int) ($taskModel->processed_items ?? 0);
 
-                if ($taskModel && ($taskModel->failed_items ?? 0) > 0) {
-                    $status = CrawlTask::STATUS_COMPLETED_WITH_ERRORS;
+                if ($failedItems > 0) {
+                    // If ALL processed items failed → truly failed
+                    // If only SOME failed → completed with errors
+                    $status = ($processedItems > 0 && $processedItems === $failedItems)
+                        ? CrawlTask::STATUS_FAILED
+                        : CrawlTask::STATUS_COMPLETED_WITH_ERRORS;
                 }
-
-                $taskModel?->update([
-                    'status' => $status,
-                    'finished_at' => now(),
-                ]);
-
-                Log::info(
-                    '===================='
-                );
-
-                Log::info(
-                    'CRAWL FULLY COMPLETED',
-                    [
-                        'task_id' => $taskId,
-                    ]
-                );
-
-                Log::info(
-                    'REAL DURATION',
-                    [
-                        'seconds' => $duration
-                    ]
-                );
-
-                Log::info(
-                    '===================='
-                );
-
-                $this->cleanup(
-                    $taskId
-                );
             }
-        } finally {
 
-            optional($lock)
-                ->release();
+            $taskModel?->update([
+                'status' => $status,
+                'finished_at' => now(),
+            ]);
+
+            Log::info(
+                '===================='
+            );
+
+            Log::info(
+                'CRAWL FULLY COMPLETED',
+                [
+                    'task_id' => $taskId,
+                ]
+            );
+
+            Log::info(
+                'REAL DURATION',
+                [
+                    'seconds' => $duration
+                ]
+            );
+
+            Log::info(
+                '===================='
+            );
+
+            $this->cleanup(
+                $taskId
+            );
         }
     }
 

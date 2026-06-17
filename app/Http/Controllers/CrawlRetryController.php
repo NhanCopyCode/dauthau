@@ -7,6 +7,7 @@ use App\Jobs\CrawlTenderDateJob;
 use App\Jobs\CrawlTenderHsmtJob;
 use App\Jobs\CrawlTenderSubResourceJob;
 use App\Models\CrawlTask;
+use App\Services\CrawlTracker;
 use App\Services\LogClassifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,88 +44,276 @@ class CrawlRetryController extends Controller
 
     public function retry(Request $request, CrawlTask $task): JsonResponse
     {
-        $logs = $task->logs()->get();
+        // ── CRITICAL: Update status BEFORE dispatching ──────────────
+        // This avoids a race condition where retried jobs finish before
+        // we save, causing checkCompletion() to see stale failed_items
+        // and mark completed_logged=true, which then prevents the
+        // subsequent retry save from "taking" and leaves the task stuck.
+        $task->status = CrawlTask::STATUS_RUNNING;
+        $task->started_at = now();
+        $task->finished_at = null;
+        $task->error = null;
+        $task->failed_items = 0;
+        $task->save();
+        $task->refresh();
+
+        $result = $this->retryForTask($task);
+        $queued = (int) ($result['queued'] ?? 0);
+        $skippedSuccess = (int) ($result['skipped_success'] ?? 0);
+        $skippedRunning = (int) ($result['skipped_running'] ?? 0);
+        $failedInfer = (int) ($result['failed_infer'] ?? 0);
+
+        // ── Fallback: if no jobs were dispatched, re-evaluate ──────
+        // retryForTask() always starts the CrawlTracker, so if $queued=0
+        // the tracker's markProducerDone() should have already called
+        // checkCompletion(). However, if that failed (e.g. lock issue),
+        // we fix the status here as a safety net.
+        if ($queued === 0) {
+            $task->refresh();
+
+            // All failures resolved → completed
+            if ($task->status === CrawlTask::STATUS_RUNNING) {
+                if ($skippedSuccess > 0 || ($skippedRunning === 0 && $failedInfer === 0)) {
+                    $task->status = CrawlTask::STATUS_COMPLETED;
+                    $task->finished_at = now();
+                    $task->save();
+                } elseif ($failedInfer > 0) {
+                    // Some jobs couldn't be inferred, no jobs dispatched
+                    // Mark as completed_with_errors so it doesn't hang
+                    $task->status = CrawlTask::STATUS_COMPLETED_WITH_ERRORS;
+                    $task->finished_at = now();
+                    $task->save();
+                }
+                // If skipped_running > 0 but nothing queued → task should
+                // already be in a running state from original crawl; leave it
+            }
+        }
+
+        return response()->json($result);
+    }
+
+    public function retryAll(Request $request): JsonResponse
+    {
+        $tasks = CrawlTask::whereIn('status', ['failed', 'completed_with_errors'])->get();
+
+        $totals = [
+            'queued'          => 0,
+            'skipped_success' => 0,
+            'skipped_running' => 0,
+            'failed_infer'    => 0,
+            'tasks_processed' => $tasks->count(),
+        ];
+
+        foreach ($tasks as $task) {
+            // ── Update status BEFORE dispatching (race-condition guard) ──
+            $task->status = CrawlTask::STATUS_RUNNING;
+            $task->started_at = now();
+            $task->finished_at = null;
+            $task->error = null;
+            $task->failed_items = 0;
+            $task->save();
+            $task->refresh();
+
+            $res = $this->retryForTask($task);
+            $totals['queued'] += $res['queued'] ?? 0;
+            $totals['skipped_success'] += $res['skipped_success'] ?? 0;
+            $totals['skipped_running'] += $res['skipped_running'] ?? 0;
+            $totals['failed_infer'] += $res['failed_infer'] ?? 0;
+
+            // ── Fallback: if no jobs dispatched, re-evaluate ──────
+            $queued = (int) ($res['queued'] ?? 0);
+            $skippedSuccess = (int) ($res['skipped_success'] ?? 0);
+            $skippedRunning = (int) ($res['skipped_running'] ?? 0);
+            $failedInfer = (int) ($res['failed_infer'] ?? 0);
+
+            if ($queued === 0) {
+                $task->refresh();
+                if ($task->status === CrawlTask::STATUS_RUNNING) {
+                    if ($skippedSuccess > 0 || ($skippedRunning === 0 && $failedInfer === 0)) {
+                        $task->status = CrawlTask::STATUS_COMPLETED;
+                        $task->finished_at = now();
+                        $task->save();
+                    } elseif ($failedInfer > 0) {
+                        $task->status = CrawlTask::STATUS_COMPLETED_WITH_ERRORS;
+                        $task->finished_at = now();
+                        $task->save();
+                    }
+                }
+            }
+        }
+
+        return response()->json($totals);
+    }
+
+    /**
+     * Retry failed log-derived jobs for a single task and return a summary array.
+     *
+     * Optimised: loads logs ONCE, classifies all upfront, indexes by param signature
+     * so we avoid O(n²) DB/collection scans for hasSuccess/isRunning checks.
+     */
+    protected function retryForTask(CrawlTask $task): array
+    {
+        // ── Load all logs ONCE ──────────────────────────────────────
+        $allLogs = $task->logs()->get();
         $classifier = new LogClassifier();
 
+        // Pre-classify every log and build indexed lookup structures.
+        // Index key = params signature (date_page or tender_id).
+        $successByKey = [];   // paramKey => true (exists a success log later)
+        $runningByKey = [];   // paramKey => true (exists a running log later)
+        $paramKeyOfLog = [];  // logId => paramKey
+
+        $classified = [];     // logId => derived status
+
+        foreach ($allLogs as $l) {
+            $ctx = $l->context ?? [];
+            $derived = $classifier->classify([
+                'level'   => $l->level,
+                'message' => $l->message,
+                'context' => $ctx,
+            ]);
+            $classified[$l->id] = $derived['status'];
+            $paramKeyOfLog[$l->id] = $this->makeParamKey($ctx);
+        }
+
+        // Build indexes: for each log, check if there's a later success/running log with same params
+        foreach ($allLogs as $l) {
+            $status = $classified[$l->id] ?? 'info';
+            $key = $paramKeyOfLog[$l->id];
+
+            if (!$key) continue;
+
+            if ($status === 'success') {
+                // Mark all earlier failed logs with the same key as having a success resolution
+                if (!isset($successByKey[$key])) {
+                    $successByKey[$key] = $l->created_at;
+                }
+            }
+            if ($status === 'running') {
+                if (!isset($runningByKey[$key])) {
+                    $runningByKey[$key] = $l->created_at;
+                }
+            }
+        }
+
+        // Quick helper: does a param key have a success log after a given timestamp?
+        $hasLaterSuccess = function (string $key, $afterTimestamp) use ($successByKey, $allLogs, $classified, $paramKeyOfLog): bool {
+            $latestSuccessAt = $successByKey[$key] ?? null;
+            if (!$latestSuccessAt) return false;
+            // Find the earliest success log for this key that is strictly after $afterTimestamp
+            foreach ($allLogs as $l) {
+                if (empty($l->created_at)) continue;
+                if ($l->created_at->lte($afterTimestamp)) continue;
+                $k = $paramKeyOfLog[$l->id] ?? '';
+                if ($k !== $key) continue;
+                $s = $classified[$l->id] ?? '';
+                if ($s === 'success') return true;
+            }
+            return false;
+        };
+
+        $hasLaterRunning = function (string $key, $afterTimestamp) use ($runningByKey, $allLogs, $classified, $paramKeyOfLog): bool {
+            $latestRunningAt = $runningByKey[$key] ?? null;
+            if (!$latestRunningAt) return false;
+            foreach ($allLogs as $l) {
+                if (empty($l->created_at)) continue;
+                if ($l->created_at->lte($afterTimestamp)) continue;
+                $k = $paramKeyOfLog[$l->id] ?? '';
+                if ($k !== $key) continue;
+                $s = $classified[$l->id] ?? '';
+                if ($s === 'running') return true;
+            }
+            return false;
+        };
+
+        // ── Initialise CrawlTracker BEFORE dispatching any jobs ────
+        // This avoids the race condition where a job finishes before the
+        // tracker is ready, causing outstanding count to be wrong and the
+        // task to never complete.
+        $tracker = app(CrawlTracker::class);
+        $tracker->start($task->id);
+
+        // ── Process failed logs ─────────────────────────────────────
         $queued = 0;
         $skipped_success = 0;
         $skipped_running = 0;
         $failed_infer = 0;
-        $items = [];
         $seenDatePages = [];
 
-        foreach ($logs as $log) {
+        // Track logs whose stale 'running' context we've already resolved
+        $resolvedStaleRunning = [];
+
+        foreach ($allLogs as $log) {
+            $status = $classified[$log->id] ?? 'info';
+            if ($status !== 'failed') continue;
+
             $ctx = $log->context ?? [];
-            $derived = $classifier->classify([
-                'level' => $log->level,
-                'message' => $log->message,
-                'context' => $ctx,
-            ]);
-
-            if ($derived['status'] !== 'failed') {
-                continue;
-            }
-
-            // Attempt to infer job type and parameters
             $inferred = $this->inferJobFromContext($ctx, $log->message);
 
             if (!$inferred) {
                 $failed_infer++;
-                $items[] = ['log_id' => $log->id, 'status' => 'infer_failed'];
                 continue;
             }
 
             [$jobClass, $params, $queue] = $inferred;
 
-            // For CrawlTenderDateJob enforce dedupe by date+page to avoid re-dispatching same page multiple times
             if ($jobClass === CrawlTenderDateJob::class) {
                 $d = $params['date'] ?? null;
                 $p = isset($params['page']) ? (int) $params['page'] : 0;
                 if (!$d) {
                     $failed_infer++;
-                    $items[] = ['log_id' => $log->id, 'status' => 'infer_failed'];
                     continue;
                 }
                 $retryKey = "{$d}_{$p}";
                 if (isset($seenDatePages[$retryKey])) {
-                    // already queued for this date+page
-                    $items[] = ['log_id' => $log->id, 'status' => 'skipped_duplicate_date_page'];
                     continue;
                 }
-                // mark seen to prevent duplicate dispatch
                 $seenDatePages[$retryKey] = true;
             }
 
-            // simple dedupe: if there is an existing success log for same job params, skip
-            $hasSuccess = $task->logs()->get()->filter(function ($l) use ($classifier, $params) {
-                $d = $classifier->classify(['level' => $l->level, 'message' => $l->message, 'context' => $l->context ?? []]);
-                if ($d['status'] !== 'success') return false;
-                $c = $l->context ?? [];
-                return $this->paramsMatch($c, $params);
-            })->count() > 0;
+            $paramKey = $this->makeParamKey($params);
 
-            if ($hasSuccess) {
+            // ── Resolve stale 'running' logs ────────────────────────
+            // Mark any 'running' log with matching params as resolved
+            // so the isRunning check below doesn't block the retry.
+            foreach ($allLogs as $l) {
+                if (isset($resolvedStaleRunning[$l->id])) continue;
+                $s = $classified[$l->id] ?? '';
+                if ($s !== 'running') continue;
+                $lk = $paramKeyOfLog[$l->id] ?? '';
+                if ($lk !== $paramKey) continue;
+                if (empty($l->created_at)) continue;
+
+                $lCtx = $l->context ?? [];
+                $lCtx['status'] = 'info';
+                $lCtx['resolved_by_retry'] = true;
+                $lCtx['resolved_at'] = now()->toDateTimeString();
+                $l->context = $lCtx;
+                $l->save();
+                $resolvedStaleRunning[$l->id] = true;
+            }
+
+            // ── Check if already succeeded later ────────────────────
+            if ($paramKey && $hasLaterSuccess($paramKey, $log->created_at)) {
+                $ctx['status'] = 'info';
+                $ctx['resolved_by_retry'] = true;
+                $ctx['resolved_at'] = now()->toDateTimeString();
+                $log->level = 'info';
+                $log->context = $ctx;
+                $log->save();
+
                 $skipped_success++;
-                $items[] = ['log_id' => $log->id, 'status' => 'skipped_already_success'];
                 continue;
             }
 
-            // skip if running
-            $isRunning = $task->logs()->get()->filter(function ($l) use ($classifier, $params) {
-                $d = $classifier->classify(['level' => $l->level, 'message' => $l->message, 'context' => $l->context ?? []]);
-                if ($d['status'] !== 'running') return false;
-                $c = $l->context ?? [];
-                return $this->paramsMatch($c, $params);
-            })->count() > 0;
-
-            if ($isRunning) {
+            // ── Check if already running later ──────────────────────
+            if ($paramKey && $hasLaterRunning($paramKey, $log->created_at)) {
                 $skipped_running++;
-                $items[] = ['log_id' => $log->id, 'status' => 'skipped_running'];
                 continue;
             }
 
+            // ── Dispatch the retry job ──────────────────────────────
             try {
-                // Dispatch known job types
                 if ($jobClass === CrawlTenderDetailJob::class) {
                     dispatch(new CrawlTenderDetailJob($params['tender_id'], $task->id))->onQueue($queue ?: 'detail');
                 } elseif ($jobClass === CrawlTenderSubResourceJob::class) {
@@ -132,31 +321,54 @@ class CrawlRetryController extends Controller
                 } elseif ($jobClass === CrawlTenderHsmtJob::class) {
                     dispatch(new CrawlTenderHsmtJob($params['tender_id'], $task->id))->onQueue($queue ?: 'hsmt');
                 } elseif ($jobClass === CrawlTenderDateJob::class) {
-                    // CrawlTenderDateJob constructor: __construct(string $date, int $page, int $taskId)
                     $date = $params['date'];
                     $page = isset($params['page']) ? (int) $params['page'] : 0;
                     dispatch(new CrawlTenderDateJob($date, $page, $task->id))->onQueue($queue ?: 'crawl');
                 } else {
-                    // unknown but inferred
                     $failed_infer++;
-                    $items[] = ['log_id' => $log->id, 'status' => 'infer_failed'];
                     continue;
                 }
 
+                // Register with tracker immediately after dispatch
+                $tracker->jobDispatched($task->id);
                 $queued++;
-                $items[] = ['log_id' => $log->id, 'status' => 'queued'];
             } catch (\Throwable $e) {
-                $items[] = ['log_id' => $log->id, 'status' => 'dispatch_failed', 'error' => $e->getMessage()];
+                // Individual dispatch failure — just count it, don't bloat response
+                $failed_infer++;
             }
         }
 
-        return response()->json([
-            'queued' => $queued,
+        // ── Mark producer done (no more jobs from this batch) ───────
+        $tracker->markProducerDone($task->id);
+
+        return [
+            'queued'          => $queued,
             'skipped_success' => $skipped_success,
             'skipped_running' => $skipped_running,
-            'failed_infer' => $failed_infer,
-            'items' => $items,
-        ]);
+            'failed_infer'    => $failed_infer,
+        ];
+    }
+
+    /**
+     * Build a deterministic parameter key for a context/params array.
+     * Returns e.g. "date:2024-01-15_page:0" or "tender:12345".
+     */
+    protected function makeParamKey(array $ctx): ?string
+    {
+        if (isset($ctx['date'])) {
+            $page = isset($ctx['page']) ? (int) $ctx['page'] : 0;
+            return "date:{$ctx['date']}_page:{$page}";
+        }
+        if (isset($ctx['tender_id'])) {
+            return 'tender:' . ((int) $ctx['tender_id']);
+        }
+        if (isset($ctx['tender']) && is_array($ctx['tender']) && isset($ctx['tender']['id'])) {
+            return 'tender:' . ((int) $ctx['tender']['id']);
+        }
+        if (isset($ctx['payload']) && is_array($ctx['payload']) && isset($ctx['payload']['tender_id'])) {
+            return 'tender:' . ((int) $ctx['payload']['tender_id']);
+        }
+        return null;
     }
 
     public function zombieCheck(Request $request, CrawlTask $task): JsonResponse

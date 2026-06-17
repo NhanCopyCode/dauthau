@@ -83,6 +83,18 @@
                           class="h-9 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
                           Tìm
                       </button>
+                      <button type="button" @click.prevent="confirmRetryAll()" x-show="failedCount > 0"
+                          class="h-9 inline-flex items-center gap-1.5 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                          title="Retry tất cả task bị lỗi">
+                          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Retry</span>
+                          <span
+                              class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[11px] font-bold bg-white/20 rounded-full"
+                              x-text="failedCount"></span>
+                      </button>
                       <button type="button" @click.prevent="resetFilters()"
                           class="h-9 inline-flex items-center px-3 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-lg text-sm hover:text-zinc-100 transition-colors whitespace-nowrap">
                           Reset
@@ -274,16 +286,16 @@
                                           title="Xem chi tiết">
                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                        3 3 0 016 0z" />
+                                                                        3 3 0 016 0z" />
 
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                        7.523 5 12 5
-                                                        c4.478 0 8.268 2.943
-                                                        9.542 7
-                                                        -1.274 4.057-5.064 7
-                                                        -9.542 7
-                                                        -4.477 0-8.268-2.943
-                                                        -9.542-7z" />
+                                                                        7.523 5 12 5
+                                                                        c4.478 0 8.268 2.943
+                                                                        9.542 7
+                                                                        -1.274 4.057-5.064 7
+                                                                        -9.542 7
+                                                                        -4.477 0-8.268-2.943
+                                                                        -9.542-7z" />
                                           </svg>
                                       </button>
                                   @else
@@ -292,21 +304,21 @@
                                           title="Đăng nhập để xem chi tiết">
                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                        3 3 0 016 0z" />
+                                                                        3 3 0 016 0z" />
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                        7.523 5 12 5
-                                                        c4.478 0 8.268 2.943
-                                                        9.542 7
-                                                        -1.274 4.057-5.064 7
-                                                        -9.542 7
-                                                        -4.477 0-8.268-2.943
-                                                        -9.542-7z" />
+                                                                        7.523 5 12 5
+                                                                        c4.478 0 8.268 2.943
+                                                                        9.542 7
+                                                                        -1.274 4.057-5.064 7
+                                                                        -9.542 7
+                                                                        -4.477 0-8.268-2.943
+                                                                        -9.542-7z" />
                                           </svg>
                                       </a>
                                   @endauth
 
                                   <!-- Retry -->
-                                  <template x-if="task.status === 'failed'">
+                                  <template x-if="task.status === 'failed' || task.status === 'completed_with_errors'">
                                       <button @click="confirmRetry(task)"
                                           class="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
                                           title="Thử lại">
@@ -393,44 +405,6 @@
       </template>
 
       <!-- Logs Slide-over (moved inside the crawlHistory scope) -->
-      <!-- Retry Result Slide-over -->
-      <div x-show="showRetryModal" x-cloak class="fixed inset-0 z-50 flex" aria-hidden="true">
-          <div @click="closeRetryModal()" x-show="showRetryModal" x-transition.opacity
-              class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-
-          <div x-show="showRetryModal" x-transition:enter="transform transition"
-              x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
-              x-transition:leave="transform transition" x-transition:leave-start="translate-y-0"
-              x-transition:leave-end="translate-y-full"
-              class="relative mx-auto my-auto w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-4">
-
-              <div class="flex items-center justify-between mb-2">
-                  <h3 class="text-sm font-semibold text-zinc-100">Retry Results</h3>
-                  <button @click="closeRetryModal()" class="text-zinc-400 hover:text-zinc-100">Close</button>
-              </div>
-
-              <div class="text-sm text-zinc-300">
-                  <template x-if="retryResult">
-                      <div class="space-y-2">
-                          <div>Queued: <strong x-text="retryResult.queued || 0"></strong></div>
-                          <div>Skipped (already success): <strong x-text="retryResult.skipped_success || 0"></strong>
-                          </div>
-                          <div>Skipped (running): <strong x-text="retryResult.skipped_running || 0"></strong></div>
-                          <div>Failed to infer: <strong x-text="retryResult.failed_infer || 0"></strong></div>
-
-                          <div class="mt-3">
-                              <div class="text-xs text-zinc-400 mb-1">Details</div>
-                              <div
-                                  class="max-h-48 overflow-auto bg-zinc-900 border border-zinc-800 p-2 rounded text-xs font-mono">
-                                  <pre x-text="JSON.stringify(retryResult.items || [], null, 2)"></pre>
-                              </div>
-                          </div>
-                      </div>
-                  </template>
-              </div>
-
-          </div>
-      </div>
       <div x-show="showLogsModal" x-cloak class="fixed inset-0 z-50 flex" aria-hidden="true">
           <!-- Overlay -->
           <div @click="closeLogs()" x-show="showLogsModal" x-transition.opacity
@@ -691,6 +665,72 @@
           </div>
       </div>
 
+      <!-- Toast Container -->
+      <div x-show="retryToasts.length > 0"
+          class="fixed bottom-6 right-6 z-[60] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+          <template x-for="(toast, idx) in retryToasts" :key="toast.id">
+              <div x-show="toast.show" x-transition:enter="transform transition ease-out duration-300"
+                  x-transition:enter-start="translate-x-full opacity-0"
+                  x-transition:enter-end="translate-x-0 opacity-100"
+                  x-transition:leave="transform transition ease-in duration-200"
+                  x-transition:leave-start="translate-x-0 opacity-100"
+                  x-transition:leave-end="translate-x-full opacity-0"
+                  class="pointer-events-auto bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-3 overflow-hidden">
+
+                  <!-- Progress bar -->
+                  <div class="absolute bottom-0 left-0 h-0.5 bg-amber-500/60"
+                      :style="'width: ' + (100 - (toast.elapsed / toast.duration) * 100) + '%'"
+                      x-show="toast.status === 'loading'"></div>
+
+                  <div class="flex items-start gap-3">
+                      <!-- Icon -->
+                      <template x-if="toast.status === 'loading'">
+                          <svg class="w-5 h-5 shrink-0 mt-0.5 text-amber-400 animate-spin" fill="none"
+                              viewBox="0 0 24 24">
+                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                  stroke-width="4" />
+                              <path class="opacity-75" fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                      </template>
+                      <template x-if="toast.status === 'success'">
+                          <svg class="w-5 h-5 shrink-0 mt-0.5 text-emerald-400" fill="none" stroke="currentColor"
+                              viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                      </template>
+                      <template x-if="toast.status === 'error'">
+                          <svg class="w-5 h-5 shrink-0 mt-0.5 text-red-400" fill="none" stroke="currentColor"
+                              viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                      </template>
+
+                      <!-- Content -->
+                      <div class="flex-1 min-w-0">
+                          <div class="text-sm font-medium text-zinc-100 truncate" x-text="toast.title"></div>
+                          <div class="text-xs text-zinc-400 mt-0.5" x-text="toast.description"></div>
+                          <template x-if="toast.status === 'loading' && toast.taskLabel">
+                              <div class="text-[11px] text-amber-500/80 mt-1 font-mono" x-text="toast.taskLabel">
+                              </div>
+                          </template>
+                      </div>
+
+                      <!-- Close -->
+                      <button @click="removeToast(toast.id)"
+                          class="shrink-0 text-zinc-500 hover:text-zinc-300 transition-colors">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                      </button>
+                  </div>
+              </div>
+          </template>
+      </div>
+
       <script>
           document.addEventListener('alpine:init', () => {
 
@@ -748,8 +788,8 @@
 
                   // retry state
                   retryInProgress: false,
-                  retryResult: null,
-                  showRetryModal: false,
+                  retryToasts: [],
+                  toastIdCounter: 0,
 
                   init() {
                       // Initialize filters from URL if present
@@ -846,6 +886,11 @@
                   get filteredTasks() {
                       // Server supplies filtered tasks via API; no client-side reductions
                       return this.tasks || [];
+                  },
+
+                  get failedCount() {
+                      return (this.tasks || []).filter(t => t.status === 'failed' || t.status ===
+                          'completed_with_errors').length;
                   },
 
                   async fetchHistory(
@@ -1308,7 +1353,12 @@
 
                   async performRetry(task) {
                       this.retryInProgress = true;
-                      this.retryResult = null;
+                      const toast = this.addToast(
+                          'loading',
+                          `Task #${task.id}`,
+                          'Đang retry...',
+                          this.getTaskLabel(task)
+                      );
                       try {
                           const resp = await fetch(`/api/crawl/tasks/${task.id}/retry`, {
                               method: 'POST',
@@ -1321,19 +1371,77 @@
 
                           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                           const payload = await resp.json();
-                          this.retryResult = payload;
-                          this.showRetryModal = true;
+                          const queued = payload.queued || 0;
+                          const skipped = (payload.skipped_success || 0) + (payload.skipped_running ||
+                              0);
+                          const failed = payload.failed_infer || 0;
+                          const total = queued + skipped + failed;
+
+                          this.updateToast(toast.id, 'success',
+                              `Task #${task.id}`,
+                              `Đã retry ${queued}/${total} job` +
+                              (failed > 0 ? `, ${failed} không xác định được` : '')
+                          );
+                          // Refresh history immediately so the task status shows 'running'
+                          this.fetchHistory(true);
                       } catch (err) {
                           console.error('Retry failed', err);
-                          alert('Thực hiện retry thất bại: ' + (err.message || ''));
+                          this.updateToast(toast.id, 'error',
+                              `Task #${task.id}`,
+                              'Retry thất bại: ' + (err.message || '')
+                          );
                       } finally {
                           this.retryInProgress = false;
                       }
                   },
 
-                  closeRetryModal() {
-                      this.showRetryModal = false;
-                      this.retryResult = null;
+                  async confirmRetryAll() {
+                      if (!confirm('Thực hiện thử lại tất cả các job failed trên hệ thống?')) return;
+                      await this.performRetryAll();
+                  },
+
+                  async performRetryAll() {
+                      this.retryInProgress = true;
+                      const toast = this.addToast(
+                          'loading',
+                          'Tất cả task bị lỗi',
+                          'Đang retry...'
+                      );
+                      try {
+                          const resp = await fetch(`/api/crawl/tasks/retry-failed`, {
+                              method: 'POST',
+                              headers: {
+                                  'Accept': 'application/json',
+                                  'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({}),
+                          });
+
+                          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                          const payload = await resp.json();
+                          const queued = payload.queued || 0;
+                          const skipped = (payload.skipped_success || 0) + (payload.skipped_running ||
+                              0);
+                          const failed = payload.failed_infer || 0;
+                          const tasksProcessed = payload.tasks_processed || 0;
+                          const total = queued + skipped + failed;
+
+                          this.updateToast(toast.id, 'success',
+                              `${tasksProcessed} task đã xử lý`,
+                              `Đã retry ${queued}/${total} job` +
+                              (failed > 0 ? `, ${failed} không xác định được` : '')
+                          );
+                      } catch (err) {
+                          console.error('Retry all failed failed', err);
+                          this.updateToast(toast.id, 'error',
+                              'Retry all thất bại',
+                              err.message || ''
+                          );
+                      } finally {
+                          this.retryInProgress = false;
+                          // refresh history to reflect newly queued jobs/status
+                          this.fetchHistory(true);
+                      }
                   },
 
                   startLogsPolling() {
@@ -1356,6 +1464,73 @@
                       }
                   },
 
+                  // ── Toast helpers ──────────────────────────────────
+                  addToast(status, title, description, taskLabel) {
+                      const id = ++this.toastIdCounter;
+                      this.retryToasts.push({
+                          id,
+                          status,
+                          title,
+                          description,
+                          taskLabel: taskLabel || null,
+                          show: true,
+                          elapsed: 0,
+                          duration: 5000,
+                      });
+                      // Auto-remove success/error toasts after 5s
+                      if (status !== 'loading') {
+                          setTimeout(() => this.removeToast(id), 5000);
+                      }
+                      return {
+                          id
+                      };
+                  },
+
+                  updateToast(id, status, title, description) {
+                      const toast = this.retryToasts.find(t => t.id === id);
+                      if (!toast) return;
+                      toast.status = status;
+                      toast.title = title;
+                      toast.description = description;
+                      // Auto-remove after update
+                      setTimeout(() => this.removeToast(id), 5000);
+                  },
+
+                  removeToast(id) {
+                      const idx = this.retryToasts.findIndex(t => t.id === id);
+                      if (idx === -1) return;
+                      this.retryToasts[idx].show = false;
+                      setTimeout(() => {
+                          this.retryToasts.splice(idx, 1);
+                      }, 300);
+                  },
+
+                  getTaskLabel(task) {
+                      if (!task) return '';
+                      const fmt = (d) => {
+                          if (!d) return '';
+                          if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                              const [y, m, day] = d.split('-');
+                              return `${day}/${m}/${y}`;
+                          }
+                          try {
+                              const p = this.parseDate(d);
+                              return p ? p.toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
+                              }) : '';
+                          } catch {
+                              return '';
+                          }
+                      };
+                      const type = (task.type || '').toLowerCase();
+                      if (type === 'full') return 'Full - Toàn bộ dữ liệu';
+                      if (type === 'daily') return 'Daily - ' + fmt(task.from_date);
+                      if (type === 'range') return 'Range - ' + fmt(task.from_date) + ' → ' + fmt(task
+                          .to_date);
+                      return type.charAt(0).toUpperCase() + type.slice(1);
+                  },
 
 
                   parseDate(date) {

@@ -17,11 +17,15 @@ class CrawlTenderDetailJob implements ShouldQueue
 {
     use Queueable;
 
-    public $tries = 5;
-
     public $timeout = 60;
 
-    public $backoff = [10, 30, 60];
+    // public $tries = 5;
+
+    // public $backoff = [10, 30, 60];
+
+    public $tries = 2; // Thay vì 5, chỉ retry 2 lần
+
+    public $backoff = [1, 2];
 
     protected int $tenderId;
 
@@ -35,20 +39,20 @@ class CrawlTenderDetailJob implements ShouldQueue
         $this->taskId = $taskId;
     }
 
-    public function backoff(): array
-    {
+    // public function backoff(): array
+    // {
 
-        // if (app()->environment('local')) {
-        //     return [1, 1];
-        // }
+    //     // if (app()->environment('local')) {
+    //     //     return [1, 1];
+    //     // }
 
-        return [
-            30,
-            120,
-            300,
-            900,
-        ];
-    }
+    //     return [
+    //         30,
+    //         120,
+    //         300,
+    //         900,
+    //     ];
+    // }
 
 
     public function handle(
@@ -89,6 +93,8 @@ class CrawlTenderDetailJob implements ShouldQueue
                 'tender_id' => $tender->id,
                 'attempt' => $this->attempts(),
             ], 'detail');
+
+            // throw new \RuntimeException('Test fail - tender_id: ' . $tender->id);
 
             $tenderDetail =
                 $service->handle(

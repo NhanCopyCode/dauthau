@@ -116,6 +116,8 @@ class CrawlTenderJob implements ShouldQueue
                 ]
             );
 
+         
+
             $data = $service->crawlPage($page);
 
             $items = $data['content'] ?? [];

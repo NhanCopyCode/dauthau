@@ -34,6 +34,22 @@ class CrawlTaskLogController extends Controller
                         ->orWhere('context->event_type', 'LIKE', '%ERROR%')
                         ->orWhere('context->status', 'failed');
                 });
+            } elseif ($lifecycle === 'success') {
+                $logsQuery = $logsQuery->where(function ($q) {
+                    $q->where(function ($q2) {
+                        $q2->where('context->status', 'success')
+                            ->orWhere('context->status', 'done')
+                            ->orWhere('context->status', 'finished');
+                    })
+                        ->orWhere('message', 'LIKE', '%SUCCESS%')
+                        ->orWhere('message', 'LIKE', '%DONE%')
+                        ->orWhere('message', 'LIKE', '%FINISHED%')
+                        ->orWhere('message', 'LIKE', '%COMPLETED%')
+                        ->orWhere('context->event_type', 'LIKE', '%SUCCESS%')
+                        ->orWhere('context->event_type', 'LIKE', '%DONE%')
+                        ->orWhere('context->event_type', 'LIKE', '%FINISHED%')
+                        ->orWhere('context->event_type', 'LIKE', '%COMPLETED%');
+                });
             } elseif ($lifecycle === 'running') {
                 $logsQuery = $logsQuery->where(function ($q) {
                     $q->where('context->status', 'running')

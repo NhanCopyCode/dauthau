@@ -41,6 +41,11 @@ Route::prefix('crawl')->group(function () {
         App\Http\Controllers\CrawlRetryController::class,
         'retry'
     ]);
+    // Retry all failed tasks (dispatch failed job retries across all failed crawl tasks)
+    Route::post('/tasks/retry-failed', [
+        App\Http\Controllers\CrawlRetryController::class,
+        'retryAll'
+    ]);
     Route::get('/tasks/{task}/zombie-check', [
         App\Http\Controllers\CrawlRetryController::class,
         'zombieCheck'

@@ -17,11 +17,14 @@ class CrawlTenderDateJob implements ShouldQueue
 {
     use Queueable;
 
-    public $tries = 5;
-
+    
     public $timeout = 120;
 
+    public $tries = 5;
     public $backoff = [10, 30, 60];
+    // public $tries = 2;  // thay vì 5
+
+    // public $backoff = [3, 5];  // thay vì [10, 30, 60]
 
     public function __construct(
         protected string $date,
@@ -33,6 +36,7 @@ class CrawlTenderDateJob implements ShouldQueue
         TenderCrawlerService $service
     ): void {
 
+     
         $tracker = app(CrawlTracker::class);
         $logger = app(CrawlLogger::class);
 
@@ -88,6 +92,8 @@ class CrawlTenderDateJob implements ShouldQueue
                 page: $page,
                 date: $date
             );
+
+            // throw new \RuntimeException('Test fail');
 
             $items = $data['content'] ?? [];
             $totalPages = $data['total_pages'] ?? 0;
@@ -245,14 +251,8 @@ class CrawlTenderDateJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        $task = CrawlTask::find($this->taskId);
-        if ($task) {
-            $task->update([
-                'status' => 'failed',
-                'error' => $e->getMessage(),
-                'finished_at' => now(),
-            ]);
-        }
+        // increment both processed_items and failed_items atomically (like CrawlTenderDetailJob)
+        $this->incrementProcessedAndFailedIfNeeded();
 
         app(CrawlTracker::class)
             ->jobFinished(
@@ -271,5 +271,29 @@ class CrawlTenderDateJob implements ShouldQueue
             ],
             'crawl'
         );
+    }
+
+    private function incrementProcessedAndFailedIfNeeded(): void
+    {
+        DB::transaction(function () {
+            $task = DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$task) {
+                return;
+            }
+
+            $processed = (int) ($task->processed_items ?? 0);
+            $failed = (int) ($task->failed_items ?? 0);
+
+            DB::table('crawl_tasks')
+                ->where('id', $this->taskId)
+                ->update([
+                    'processed_items' => $processed + 1,
+                    'failed_items' => $failed + 1,
+                ]);
+        });
     }
 }
