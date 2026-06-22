@@ -11,79 +11,26 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Services\CrawlLogger;
 
-// class CrawlTenderHsmtJob implements ShouldQueue
-// {
-//     use Queueable;
 
-//     public int $tries = 3;
-//     public int $timeout = 60;
-//     public array $backoff = [10, 30, 60];
-
-//     public function __construct(
-//         protected int $tenderId
-//     ) {}
-
-//     public function handle(HsmtService $service): void
-//     {
-
-//         $tracker = app(CrawlTracker::class);
-
-//         try {
-//             $tender = Tender::find($this->tenderId);
-
-//             if (!$tender) {
-//                 Log::warning('Hsmt job: tender not found', [
-//                     'tender_id' => $this->tenderId,
-//                 ]);
-
-//                 $tracker->jobFinished($task->id);
-
-//                 return;
-//             }
-
-
-
-//             $service->handle($tender->id);
-
-//             $tracker->jobFinished($task->id);
-//         } catch (\Throwable $e) {
-
-//             Log::error('HSMT job failed', [
-//                 'tender_id' => $this->tenderId,
-//                 'error' => $e->getMessage(),
-//             ]);
-
-//             throw $e;
-//         }
-//     }
-
-//     public function failed(\Throwable $e): void
-//     {
-//         app(CrawlTracker::class)
-//             ->jobFinished();
-
-
-//         Log::critical('HSMT permanently failed', [
-//             'tender_id' => $this->tenderId,
-//             'attempts' => $this->attempts(),
-//             'error' => $e->getMessage(),
-//         ]);
-//     }
-// }
 
 class CrawlTenderHsmtJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3;
 
     public int $timeout = 60;
 
-    public array $backoff = [
-        10,
-        30,
-        60
-    ];
+    // public int $tries = 3;
+
+    // public array $backoff = [
+    //     10,
+    //     30,
+    //     60
+    // ];
+
+    public int $tries = 1;
+
+    public array $backoff = [1];
 
     public function __construct(
         protected int $tenderId,
@@ -93,6 +40,10 @@ class CrawlTenderHsmtJob implements ShouldQueue
     public function handle(
         HsmtService $service
     ): void {
+
+        // throw new \Exception(
+        //     'TEST HSMT FAIL'
+        // );
 
         $tracker = app(
             CrawlTracker::class
@@ -137,18 +88,32 @@ class CrawlTenderHsmtJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        // count as processed and failed on permanent failure (atomic)
-        $this->incrementProcessedAndFailedIfNeeded();
-
-        app(CrawlTracker::class)->jobFinished($this->taskId);
         $logger = app(CrawlLogger::class);
 
+        // Ghi error log TRƯỚC để đảm bảo luôn có log dù DB/cache operations sau có throw
         $logger->error($this->taskId, 'HSMT permanently failed', [
             'tender_id' => $this->tenderId,
             'attempts' => $this->attempts(),
             'error' => $e->getMessage(),
             'exception' => $e,
         ], 'hsmt');
+
+        // count as processed and failed on permanent failure (atomic)
+        try {
+            $this->incrementProcessedAndFailedIfNeeded();
+        } catch (\Throwable $ignored) {
+            $logger->error($this->taskId, 'HSMT failed() - incrementProcessedAndFailedIfNeeded failed', [
+                'error' => $ignored->getMessage(),
+            ], 'hsmt');
+        }
+
+        try {
+            app(CrawlTracker::class)->jobFinished($this->taskId);
+        } catch (\Throwable $ignored) {
+            $logger->error($this->taskId, 'HSMT failed() - jobFinished failed', [
+                'error' => $ignored->getMessage(),
+            ], 'hsmt');
+        }
     }
 
     private function incrementProcessedItemsIfNeeded(): void

@@ -286,16 +286,16 @@
                                           title="Xem chi tiết">
                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                                        3 3 0 016 0z" />
+                                                                                3 3 0 016 0z" />
 
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                                        7.523 5 12 5
-                                                                        c4.478 0 8.268 2.943
-                                                                        9.542 7
-                                                                        -1.274 4.057-5.064 7
-                                                                        -9.542 7
-                                                                        -4.477 0-8.268-2.943
-                                                                        -9.542-7z" />
+                                                                                7.523 5 12 5
+                                                                                c4.478 0 8.268 2.943
+                                                                                9.542 7
+                                                                                -1.274 4.057-5.064 7
+                                                                                -9.542 7
+                                                                                -4.477 0-8.268-2.943
+                                                                                -9.542-7z" />
                                           </svg>
                                       </button>
                                   @else
@@ -304,15 +304,15 @@
                                           title="Đăng nhập để xem chi tiết">
                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                                        3 3 0 016 0z" />
+                                                                                3 3 0 016 0z" />
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                                        7.523 5 12 5
-                                                                        c4.478 0 8.268 2.943
-                                                                        9.542 7
-                                                                        -1.274 4.057-5.064 7
-                                                                        -9.542 7
-                                                                        -4.477 0-8.268-2.943
-                                                                        -9.542-7z" />
+                                                                                7.523 5 12 5
+                                                                                c4.478 0 8.268 2.943
+                                                                                9.542 7
+                                                                                -1.274 4.057-5.064 7
+                                                                                -9.542 7
+                                                                                -4.477 0-8.268-2.943
+                                                                                -9.542-7z" />
                                           </svg>
                                       </a>
                                   @endauth
@@ -523,15 +523,7 @@
                                               <div class="ml-2">
                                                   <span
                                                       class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                                      :class="{
-                                                          'bg-emerald-500/10 text-emerald-500': (log
-                                                              .derived_status || '') === 'success',
-                                                          'bg-blue-500/10 text-blue-400': (log.derived_status ||
-                                                              '') === 'running',
-                                                          'bg-red-500/10 text-red-400': (log.derived_status ||
-                                                              '') === 'failed'
-                                                      }"
-                                                      x-text="(log.event_type) ? log.event_type : ((log.derived_status || log.context && log.context.status) ? (log.derived_status || (log.context && log.context.status)).toUpperCase() : (log.level || '').toUpperCase())"></span>
+                                                      :class="logBadgeClass(log)" x-text="logBadgeText(log)"></span>
                                               </div>
 
                                               <div class="ml-2 text-zinc-500 text-xs"
@@ -1115,41 +1107,34 @@
                           const want = this.logLifecycleFilter.toLowerCase();
 
                           const isSuccess = (l) => {
+                              // derived_status từ backend (LogClassifier) đã phân loại chính xác
                               const ds = (l.derived_status || '').toString().trim().toLowerCase();
                               if (ds === 'success') return true;
 
+                              // context.status được set tường minh
                               const ctxStatus = l.context && l.context.status ? String(l.context
-                                  .status).toUpperCase() : '';
-                              if (ctxStatus && (ctxStatus.includes('SUCCESS') || ctxStatus
-                                      .includes('COMPLETE') || ctxStatus.includes('COMPLETED') ||
-                                      ctxStatus.includes('DONE') || ctxStatus.includes('FINISH')))
-                                  return true;
+                                  .status).toLowerCase() : '';
+                              if (ctxStatus === 'success' || ctxStatus === 'done' || ctxStatus ===
+                                  'finished') return true;
 
-                              const et = (l.event_type || '').toString().toUpperCase();
-                              const msg = (l.message || '').toString().toUpperCase();
-                              return (et.includes('SUCCESS') || et.includes('COMPLETE') || et
-                                  .includes('COMPLETED') || et.includes('DONE') || msg
-                                  .includes('SUCCESS') || msg.includes('COMPLETE') || msg
-                                  .includes('COMPLETED') || msg.includes('DONE') || msg
-                                  .includes('FINISHED'));
+                              return false;
                           };
 
                           const isFailed = (l) => {
+                              // derived_status từ backend (LogClassifier) đã phân loại chính xác
                               const ds = (l.derived_status || '').toString().trim().toLowerCase();
                               if (ds === 'failed') return true;
 
+                              // level = error từ database
                               const level = (l.level || '').toString().toLowerCase();
                               if (level === 'error') return true;
 
-                              const et = (l.event_type || '').toString().toUpperCase();
-                              const msg = (l.message || '').toString().toUpperCase();
-                              return (et.includes('FAILED') || et.includes('ERROR') || et
-                                  .includes('EXCEPTION') || et.includes('TIMEOUT') || et
-                                  .includes('PERMANENTLY FAILED') || et.includes(
-                                      'CRITICAL') || msg.includes('FAILED') || msg.includes(
-                                      'ERROR') || msg.includes('EXCEPTION') || msg.includes(
-                                      'TIMEOUT') || msg.includes('PERMANENTLY FAILED') || msg
-                                  .includes('CRITICAL'));
+                              // context.status được set tường minh
+                              const ctxStatus = l.context && l.context.status ? String(l.context
+                                  .status).toLowerCase() : '';
+                              if (ctxStatus === 'failed' || ctxStatus === 'error') return true;
+
+                              return false;
                           };
 
                           if (want === 'success') {
@@ -1629,6 +1614,61 @@
                       const extra =
                           `<span class="ml-1 text-xs text-amber-400" title="Phát hiện dữ liệu mới trong lúc crawl">(+${newCount} dữ liệu liên quan)</span>`;
                       return `${main} ${extra}`;
+                  },
+
+                  /**
+                   * Resolve the effective status for a log entry.
+                   * Priority: derived_status → context.status → level-based heuristics
+                   */
+                  resolveStatus(log) {
+                      if (!log) return 'info';
+
+                      // derived_status from server (already classified)
+                      if (log.derived_status) {
+                          const s = log.derived_status.toString().trim().toLowerCase();
+                          if (['success', 'failed', 'running', 'info'].includes(s)) return s;
+                          // map 'done'/'finished' → 'success', 'error' → 'failed', etc.
+                          if (['done', 'finished', 'completed'].includes(s)) return 'success';
+                          if (['error'].includes(s)) return 'failed';
+                          return s;
+                      }
+
+                      // context.status fallback
+                      if (log.context && log.context.status) {
+                          const cs = log.context.status.toString().trim().toLowerCase();
+                          if (['success', 'failed', 'running', 'info'].includes(cs)) return cs;
+                          if (['done', 'finished', 'completed'].includes(cs)) return 'success';
+                          if (['error'].includes(cs)) return 'failed';
+                          return cs;
+                      }
+
+                      // Level-based fallback
+                      const level = (log.level || '').toString().toLowerCase();
+                      if (level === 'error') return 'failed';
+                      if (level === 'warning') return 'info';
+
+                      return 'info';
+                  },
+
+                  /**
+                   * Compute CSS classes for the status badge.
+                   */
+                  logBadgeClass(log) {
+                      const s = this.resolveStatus(log);
+                      if (s === 'success') return 'bg-emerald-500/10 text-emerald-500';
+                      if (s === 'running') return 'bg-blue-500/10 text-blue-400';
+                      if (s === 'failed') return 'bg-red-500/10 text-red-400';
+                      return 'bg-zinc-500/10 text-zinc-400';
+                  },
+
+                  /**
+                   * Compute display text for the status badge.
+                   * Uses event_type if present, otherwise the resolved status uppercased.
+                   */
+                  logBadgeText(log) {
+                      if (log.event_type) return log.event_type;
+                      const s = this.resolveStatus(log);
+                      return s.toUpperCase();
                   },
 
                   formatDate(date, withTime = true) {

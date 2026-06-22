@@ -33,11 +33,26 @@ class CrawlTracker
             false
         );
 
+        Cache::put(
+            $this->key($taskId, 'previous_success'),
+            0
+        );
+
         Log::info(
             'CRAWL TRACKER STARTED',
             [
                 'task_id' => $taskId
             ]
+        );
+    }
+
+    public function setPreviousSuccessCount(
+        int $taskId,
+        int $count
+    ): void {
+        Cache::put(
+            $this->key($taskId, 'previous_success'),
+            $count
         );
     }
 
@@ -166,11 +181,19 @@ class CrawlTracker
             if ($taskModel) {
                 $failedItems = (int) ($taskModel->failed_items ?? 0);
                 $processedItems = (int) ($taskModel->processed_items ?? 0);
+                $previousSuccess = (int) Cache::get(
+                    $this->key($taskId, 'previous_success'),
+                    0
+                );
 
                 if ($failedItems > 0) {
-                    // If ALL processed items failed → truly failed
-                    // If only SOME failed → completed with errors
-                    $status = ($processedItems > 0 && $processedItems === $failedItems)
+                    // When a retry resets processed_items → 0 and failed_items → 0,
+                    // we lose track of items that succeeded in earlier runs.
+                    // previous_success preserves that count so we can distinguish:
+                    //   - truly all-failed (never any success)       → STATUS_FAILED
+                    //   - some earlier successes + retry failures   → COMPLETED_WITH_ERRORS
+                    $allFailed = ($previousSuccess === 0) && ($processedItems === $failedItems);
+                    $status = $allFailed
                         ? CrawlTask::STATUS_FAILED
                         : CrawlTask::STATUS_COMPLETED_WITH_ERRORS;
                 }

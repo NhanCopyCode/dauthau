@@ -281,7 +281,7 @@ class CrawlController extends Controller
         } elseif ($lastTask && $lastTask->status === CrawlTask::STATUS_COMPLETED) {
             $currentProgress = '✅ Hoàn tất';
         } elseif ($lastTask && $lastTask->status === CrawlTask::STATUS_COMPLETED_WITH_ERRORS) {
-            $currentProgress = '✅ Hoàn tất (có lỗi)';
+            $currentProgress = '⚠️ Hoàn tất (có lỗi)';
         } elseif ($lastTask && $lastTask->status === CrawlTask::STATUS_FAILED) {
             $currentProgress = '❌ Thất bại';
         }

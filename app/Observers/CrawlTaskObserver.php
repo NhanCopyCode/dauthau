@@ -30,6 +30,7 @@ class CrawlTaskObserver
                 'crawl_task_id' => $task->id,
                 'type' => $type,
                 'message' => $message,
+                'failed_items' => (int) ($task->failed_items ?? 0),
             ]);
         }
     }

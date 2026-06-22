@@ -116,7 +116,7 @@ class CrawlTenderJob implements ShouldQueue
                 ]
             );
 
-         
+
 
             $data = $service->crawlPage($page);
 
@@ -291,10 +291,8 @@ class CrawlTenderJob implements ShouldQueue
                 ]
             );
 
-            $task->update([
-                'status' => 'failed',
-                'error' => $e->getMessage(),
-            ]);
+            // KHÔNG set status='failed' ở đây!
+            // Để CrawlTracker::checkCompletion() quyết định final status.
 
             throw $e;
         } finally {
@@ -306,29 +304,25 @@ class CrawlTenderJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        $task = CrawlTask::find($this->taskId);
-        if ($task) {
-            $task->update([
-                'status' => 'failed',
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        app(CrawlTracker::class)
-            ->jobFinished(
-                $this->taskId
-            );
-
         Log::error(
             'CrawlTenderJob permanently failed',
             [
-
                 'task_id' => $this->taskId,
-
                 'page' => $this->page,
-
                 'error' => $e->getMessage(),
             ]
         );
+
+        try {
+            app(CrawlTracker::class)
+                ->jobFinished(
+                    $this->taskId
+                );
+        } catch (\Throwable $ignored) {
+            Log::error('CrawlTenderJob failed() - jobFinished failed', [
+                'task_id' => $this->taskId,
+                'error' => $ignored->getMessage(),
+            ]);
+        }
     }
 }

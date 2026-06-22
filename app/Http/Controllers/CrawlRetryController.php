@@ -23,6 +23,11 @@ class CrawlRetryController extends Controller
 
         foreach ($logs as $log) {
             $ctx = $log->context ?? [];
+
+            // Skip logs already resolved by a previous retry
+            // Check both old (resolved_by_retry) and new (retry_resolved) field names
+            if (!empty($ctx['retry_resolved']) || !empty($ctx['resolved_by_retry'])) continue;
+
             $derived = $classifier->classify([
                 'level' => $log->level,
                 'message' => $log->message,
@@ -49,15 +54,24 @@ class CrawlRetryController extends Controller
         // we save, causing checkCompletion() to see stale failed_items
         // and mark completed_logged=true, which then prevents the
         // subsequent retry save from "taking" and leaves the task stuck.
+        // Also reset processed_items → 0 so incrementProcessedAndFailedIfNeeded()
+        // in failed() does not double-count across retry runs, which would
+        // inflate processed_items > failed_items and wrongly yield
+        // COMPLETED_WITH_ERRORS instead of FAILED.
+        // Capture previous success count BEFORE reset so checkCompletion()
+        // can still distinguish "truly all-failed" from "some earlier successes".
+        $previousSuccess = max(0, (int) $task->processed_items - (int) $task->failed_items);
+
         $task->status = CrawlTask::STATUS_RUNNING;
         $task->started_at = now();
         $task->finished_at = null;
         $task->error = null;
         $task->failed_items = 0;
+        $task->processed_items = 0;
         $task->save();
         $task->refresh();
 
-        $result = $this->retryForTask($task);
+        $result = $this->retryForTask($task, $previousSuccess);
         $queued = (int) ($result['queued'] ?? 0);
         $skippedSuccess = (int) ($result['skipped_success'] ?? 0);
         $skippedRunning = (int) ($result['skipped_running'] ?? 0);
@@ -106,15 +120,18 @@ class CrawlRetryController extends Controller
 
         foreach ($tasks as $task) {
             // ── Update status BEFORE dispatching (race-condition guard) ──
+            $previousSuccess = max(0, (int) $task->processed_items - (int) $task->failed_items);
+
             $task->status = CrawlTask::STATUS_RUNNING;
             $task->started_at = now();
             $task->finished_at = null;
             $task->error = null;
             $task->failed_items = 0;
+            $task->processed_items = 0;
             $task->save();
             $task->refresh();
 
-            $res = $this->retryForTask($task);
+            $res = $this->retryForTask($task, $previousSuccess);
             $totals['queued'] += $res['queued'] ?? 0;
             $totals['skipped_success'] += $res['skipped_success'] ?? 0;
             $totals['skipped_running'] += $res['skipped_running'] ?? 0;
@@ -151,7 +168,7 @@ class CrawlRetryController extends Controller
      * Optimised: loads logs ONCE, classifies all upfront, indexes by param signature
      * so we avoid O(n²) DB/collection scans for hasSuccess/isRunning checks.
      */
-    protected function retryForTask(CrawlTask $task): array
+    protected function retryForTask(CrawlTask $task, int $previousSuccess = 0): array
     {
         // ── Load all logs ONCE ──────────────────────────────────────
         $allLogs = $task->logs()->get();
@@ -212,12 +229,20 @@ class CrawlRetryController extends Controller
             return false;
         };
 
-        $hasLaterRunning = function (string $key, $afterTimestamp) use ($runningByKey, $allLogs, $classified, $paramKeyOfLog): bool {
+        // Capture retry session start time BEFORE the closure so it's available for capture.
+        $retryStartedAt = now();
+
+        $hasLaterRunning = function (string $key, $afterTimestamp) use ($runningByKey, $allLogs, $classified, $paramKeyOfLog, $retryStartedAt): bool {
             $latestRunningAt = $runningByKey[$key] ?? null;
             if (!$latestRunningAt) return false;
             foreach ($allLogs as $l) {
                 if (empty($l->created_at)) continue;
                 if ($l->created_at->lte($afterTimestamp)) continue;
+                // Only consider running logs created DURING this retry session.
+                // Historical running logs (e.g. START logs from later queue attempts
+                // of the same job) are false positives — they don't mean the job
+                // is currently being retried by a concurrent retry request.
+                if ($l->created_at->lte($retryStartedAt)) continue;
                 $k = $paramKeyOfLog[$l->id] ?? '';
                 if ($k !== $key) continue;
                 $s = $classified[$l->id] ?? '';
@@ -233,12 +258,21 @@ class CrawlRetryController extends Controller
         $tracker = app(CrawlTracker::class);
         $tracker->start($task->id);
 
+        // Preserve count of items that succeeded in earlier runs so
+        // checkCompletion() can still distinguish "truly all-failed"
+        // from "some earlier successes" after processed_items was reset.
+        if ($previousSuccess > 0) {
+            $tracker->setPreviousSuccessCount($task->id, $previousSuccess);
+        }
+
         // ── Process failed logs ─────────────────────────────────────
         $queued = 0;
         $skipped_success = 0;
         $skipped_running = 0;
         $failed_infer = 0;
         $seenDatePages = [];
+        $seenTenderJobPairs = [];
+        $skipped_duplicate = 0;
 
         // Track logs whose stale 'running' context we've already resolved
         $resolvedStaleRunning = [];
@@ -248,6 +282,11 @@ class CrawlRetryController extends Controller
             if ($status !== 'failed') continue;
 
             $ctx = $log->context ?? [];
+
+            // Skip logs already resolved by a previous retry
+            // Check both old (resolved_by_retry) and new (retry_resolved) field names
+            if (!empty($ctx['retry_resolved']) || !empty($ctx['resolved_by_retry'])) continue;
+
             $inferred = $this->inferJobFromContext($ctx, $log->message);
 
             if (!$inferred) {
@@ -271,6 +310,34 @@ class CrawlRetryController extends Controller
                 $seenDatePages[$retryKey] = true;
             }
 
+            // ── Dedup: only dispatch ONE retry job per (jobClass, tender_id) pair ──
+            // Multiple log entries can exist for the same tender (different attempts,
+            // failed callback). Without dedup, each log triggers a separate dispatch,
+            // causing exponential growth of jobs and failed_items on subsequent retries.
+            if (in_array($jobClass, [
+                CrawlTenderDetailJob::class,
+                CrawlTenderHsmtJob::class,
+                CrawlTenderSubResourceJob::class,
+            ], true)) {
+                $tid = $params['tender_id'] ?? null;
+                if ($tid) {
+                    $pairKey = $jobClass . ':' . $tid;
+                    if (isset($seenTenderJobPairs[$pairKey])) {
+                        // Already dispatched retry for this (job, tender) pair.
+                        // Mark this duplicate log as resolved so it won't be
+                        // re-picked on future retries.
+                        $lctx = $log->context ?? [];
+                        $lctx['retry_resolved'] = true;
+                        $lctx['resolved_at'] = now()->toDateTimeString();
+                        $log->context = $lctx;
+                        $log->save();
+                        $skipped_duplicate++;
+                        continue;
+                    }
+                    $seenTenderJobPairs[$pairKey] = true;
+                }
+            }
+
             $paramKey = $this->makeParamKey($params);
 
             // ── Resolve stale 'running' logs ────────────────────────
@@ -285,8 +352,7 @@ class CrawlRetryController extends Controller
                 if (empty($l->created_at)) continue;
 
                 $lCtx = $l->context ?? [];
-                $lCtx['status'] = 'info';
-                $lCtx['resolved_by_retry'] = true;
+                $lCtx['retry_resolved'] = true;
                 $lCtx['resolved_at'] = now()->toDateTimeString();
                 $l->context = $lCtx;
                 $l->save();
@@ -295,10 +361,8 @@ class CrawlRetryController extends Controller
 
             // ── Check if already succeeded later ────────────────────
             if ($paramKey && $hasLaterSuccess($paramKey, $log->created_at)) {
-                $ctx['status'] = 'info';
-                $ctx['resolved_by_retry'] = true;
+                $ctx['retry_resolved'] = true;
                 $ctx['resolved_at'] = now()->toDateTimeString();
-                $log->level = 'info';
                 $log->context = $ctx;
                 $log->save();
 
@@ -331,6 +395,22 @@ class CrawlRetryController extends Controller
 
                 // Register with tracker immediately after dispatch
                 $tracker->jobDispatched($task->id);
+
+                // Mark the original failure log as resolved by this retry so
+                // subsequent retry requests don't re-dispatch the same
+                // logical job multiple times (which caused exponential
+                // growth of failures). We keep a record that it was
+                // resolved by retry, preserving original status/level.
+                try {
+                    $lctx = $log->context ?? [];
+                    $lctx['retry_resolved'] = true;
+                    $lctx['resolved_at'] = now()->toDateTimeString();
+                    $log->context = $lctx;
+                    $log->save();
+                } catch (\Throwable $e) {
+                    // If saving the log fails, don't block retry; continue.
+                }
+
                 $queued++;
             } catch (\Throwable $e) {
                 // Individual dispatch failure — just count it, don't bloat response
@@ -342,10 +422,11 @@ class CrawlRetryController extends Controller
         $tracker->markProducerDone($task->id);
 
         return [
-            'queued'          => $queued,
-            'skipped_success' => $skipped_success,
-            'skipped_running' => $skipped_running,
-            'failed_infer'    => $failed_infer,
+            'queued'            => $queued,
+            'skipped_success'   => $skipped_success,
+            'skipped_running'   => $skipped_running,
+            'skipped_duplicate' => $skipped_duplicate,
+            'failed_infer'      => $failed_infer,
         ];
     }
 

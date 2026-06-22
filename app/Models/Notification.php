@@ -11,11 +11,13 @@ class Notification extends Model
         'crawl_task_id',
         'type',
         'message',
+        'failed_items',
         'read_at',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'failed_items' => 'integer',
     ];
 
     public function crawlTask(): BelongsTo

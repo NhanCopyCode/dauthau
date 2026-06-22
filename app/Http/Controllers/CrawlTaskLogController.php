@@ -28,10 +28,6 @@ class CrawlTaskLogController extends Controller
             if ($lifecycle === 'failed') {
                 $logsQuery = $logsQuery->where(function ($q) {
                     $q->where('level', 'error')
-                        ->orWhere('message', 'LIKE', '%FAILED%')
-                        ->orWhere('message', 'LIKE', '%ERROR%')
-                        ->orWhere('context->event_type', 'LIKE', '%FAILED%')
-                        ->orWhere('context->event_type', 'LIKE', '%ERROR%')
                         ->orWhere('context->status', 'failed');
                 });
             } elseif ($lifecycle === 'success') {
@@ -40,23 +36,11 @@ class CrawlTaskLogController extends Controller
                         $q2->where('context->status', 'success')
                             ->orWhere('context->status', 'done')
                             ->orWhere('context->status', 'finished');
-                    })
-                        ->orWhere('message', 'LIKE', '%SUCCESS%')
-                        ->orWhere('message', 'LIKE', '%DONE%')
-                        ->orWhere('message', 'LIKE', '%FINISHED%')
-                        ->orWhere('message', 'LIKE', '%COMPLETED%')
-                        ->orWhere('context->event_type', 'LIKE', '%SUCCESS%')
-                        ->orWhere('context->event_type', 'LIKE', '%DONE%')
-                        ->orWhere('context->event_type', 'LIKE', '%FINISHED%')
-                        ->orWhere('context->event_type', 'LIKE', '%COMPLETED%');
+                    });
                 });
             } elseif ($lifecycle === 'running') {
                 $logsQuery = $logsQuery->where(function ($q) {
-                    $q->where('context->status', 'running')
-                        ->orWhere('message', 'LIKE', '%START%')
-                        ->orWhere('message', 'LIKE', '%RUN%')
-                        ->orWhere('context->event_type', 'LIKE', '%START%')
-                        ->orWhere('context->event_type', 'LIKE', '%RUN%');
+                    $q->where('context->status', 'running');
                 });
             }
         }

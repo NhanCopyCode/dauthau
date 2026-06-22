@@ -46,7 +46,7 @@
                  <div class="flex flex-row align-items-start infomation__content">
                      <div class="flex items-start infomation__content__title"> Mã KHLCNT </div>
                      <div class="text-blue-4D7AE6 style-rBg9H" id="style-rBg9H">
-                         <a href="{{ route('khlcnt.show', $tenderDetail->plan_id) }}" >
+                         <a href="{{ route('khlcnt.show', $tenderDetail->plan_id) }}">
                              {{ $tenderDetail->plan_no }}
                          </a>
                      </div>
@@ -142,7 +142,8 @@
                          {{ $tenderDetail->contract_period_label }}
                      </div>
                  </div>
-                 <div class="flex items-start infomation__content {{ $tenderDetail->is_multi_lot > 0 ? '' : 'hidden' }}">
+                 <div
+                     class="flex items-start infomation__content {{ $tenderDetail->is_multi_lot > 0 ? '' : 'hidden' }}">
                      <div class="flex items-start infomation__content__title"> Gói thầu có nhiều
                          phần/lô </div>
                      <div>
@@ -150,7 +151,8 @@
                      </div>
                  </div>
 
-                 <div class="flex items-start infomation__content {{ $tenderDetail->is_multi_lot > 0 ? '' : 'hidden' }}">
+                 <div
+                     class="flex items-start infomation__content {{ $tenderDetail->is_multi_lot > 0 ? '' : 'hidden' }}">
                      <div class="flex items-start infomation__content__title"> Số lượng phần
                          (lô) </div>
                      <div>
@@ -332,8 +334,7 @@
                              duyệt </div>
                          <div>
                              @if ($tenderDetail->approval_file_name)
-                                 <a href="{{ asset('storage/files/' . $tenderDetail->approval_file_name) }}"
-                                     target="_blank" class="text-blue-600 hover:underline">
+                                 <a href="#" class="text-blue-600 hover:underline">
                                      {{ $tenderDetail->approval_file_name }}
                                  </a>
                              @else
@@ -531,7 +532,8 @@
              <div class="card border--none">
                  <div class="card-header lg:w-[1014px]">{{ $tenderDetail->scope_title }}</div>
 
-                 <span class="my-5" style="font-weight: 600;color: #000;">{{ $tenderDetail->scope_chapter_name }}</span>
+                 <span class="my-5"
+                     style="font-weight: 600;color: #000;">{{ $tenderDetail->scope_chapter_name }}</span>
                  <div class="pb-px-24 font-weight-bold card-body item-table w-full lg:w-[1014px]">
                      <a href="{{ route('tenders.export.excel', $tenderDetail->id) }}"
                          class="btn btn-primary button-back table-expand"

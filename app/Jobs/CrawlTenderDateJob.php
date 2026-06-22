@@ -17,14 +17,14 @@ class CrawlTenderDateJob implements ShouldQueue
 {
     use Queueable;
 
-    
+
     public $timeout = 120;
 
     public $tries = 5;
     public $backoff = [10, 30, 60];
-    // public $tries = 2;  // thay vì 5
+    // public $tries = 1;  // thay vì 5
 
-    // public $backoff = [3, 5];  // thay vì [10, 30, 60]
+    // public $backoff = [1];  // thay vì [10, 30, 60]
 
     public function __construct(
         protected string $date,
@@ -36,7 +36,8 @@ class CrawlTenderDateJob implements ShouldQueue
         TenderCrawlerService $service
     ): void {
 
-     
+        // throw new \RuntimeException('Test fail');
+
         $tracker = app(CrawlTracker::class);
         $logger = app(CrawlLogger::class);
 
@@ -93,7 +94,6 @@ class CrawlTenderDateJob implements ShouldQueue
                 date: $date
             );
 
-            // throw new \RuntimeException('Test fail');
 
             $items = $data['content'] ?? [];
             $totalPages = $data['total_pages'] ?? 0;
@@ -233,12 +233,13 @@ class CrawlTenderDateJob implements ShouldQueue
                 'message' => $e->getMessage(),
                 'exception' => $e,
             ], 'crawl');
-            $task->update([
 
-                'status' => 'failed',
-
-                'error' => $e->getMessage(),
-            ]);
+            // KHÔNG set status='failed' ở đây!
+            // Để CrawlTracker::checkCompletion() quyết định final status dựa trên
+            // failed_items vs processed_items.
+            // Việc set status ở đây gây bug: nếu 1 date job fail trong range task
+            // thì đánh dấu toàn bộ task là failed, và nếu incrementProcessedAndFailedIfNeeded()
+            // trong failed() throw (deadlock), jobFinished() không được gọi → task treo running.
 
             throw $e;
         } finally {
@@ -251,15 +252,9 @@ class CrawlTenderDateJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        // increment both processed_items and failed_items atomically (like CrawlTenderDetailJob)
-        $this->incrementProcessedAndFailedIfNeeded();
-
-        app(CrawlTracker::class)
-            ->jobFinished(
-                $this->taskId
-            );
-
         $logger = app(CrawlLogger::class);
+
+        // Ghi error log TRƯỚC để đảm bảo luôn có log dù DB/cache operations sau có throw
         $logger->error(
             $this->taskId,
             'CrawlTenderDateJob permanently failed',
@@ -271,6 +266,26 @@ class CrawlTenderDateJob implements ShouldQueue
             ],
             'crawl'
         );
+
+        try {
+            // increment both processed_items and failed_items atomically (like CrawlTenderDetailJob)
+            $this->incrementProcessedAndFailedIfNeeded();
+        } catch (\Throwable $ignored) {
+            $logger->error($this->taskId, 'DateJob failed() - incrementProcessedAndFailedIfNeeded failed', [
+                'error' => $ignored->getMessage(),
+            ], 'crawl');
+        }
+
+        try {
+            app(CrawlTracker::class)
+                ->jobFinished(
+                    $this->taskId
+                );
+        } catch (\Throwable $ignored) {
+            $logger->error($this->taskId, 'DateJob failed() - jobFinished failed', [
+                'error' => $ignored->getMessage(),
+            ], 'crawl');
+        }
     }
 
     private function incrementProcessedAndFailedIfNeeded(): void

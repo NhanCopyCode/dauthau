@@ -158,19 +158,33 @@ class CrawlTenderDetailJob implements ShouldQueue
         Throwable $e
     ): void {
         $logger = app(CrawlLogger::class);
-        // ensure this job counts as processed and recorded as failed (atomic)
-        $this->incrementProcessedAndFailedIfNeeded();
 
-        app(CrawlTracker::class)
-            ->jobFinished(
-                $this->taskId
-            );
-
+        // Ghi error log TRƯỚC để đảm bảo luôn có log dù DB/cache operations sau có throw
         $logger->error($this->taskId, 'DETAIL JOB FAILED PERMANENTLY', [
             'tender_id' => $this->tenderId,
             'error' => $e->getMessage(),
             'exception' => $e,
         ], 'detail');
+
+        try {
+            // ensure this job counts as processed and recorded as failed (atomic)
+            $this->incrementProcessedAndFailedIfNeeded();
+        } catch (\Throwable $ignored) {
+            $logger->error($this->taskId, 'DETAIL failed() - incrementProcessedAndFailedIfNeeded failed', [
+                'error' => $ignored->getMessage(),
+            ], 'detail');
+        }
+
+        try {
+            app(CrawlTracker::class)
+                ->jobFinished(
+                    $this->taskId
+                );
+        } catch (\Throwable $ignored) {
+            $logger->error($this->taskId, 'DETAIL failed() - jobFinished failed', [
+                'error' => $ignored->getMessage(),
+            ], 'detail');
+        }
     }
 
     private function incrementProcessedAndFailedIfNeeded(): void

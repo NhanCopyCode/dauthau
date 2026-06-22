@@ -701,7 +701,7 @@
     align-items:center;
     justify-content:center;
 ">
-    <div style=" padding:20px 30px;" class="bg-white flex items-center justify-center gap-2 rounded-2xl">
+    <div style=" padding:20px 30px;" class="bg-white flex items-center justify-center gap-2 rounded-2xl text-black">
         <div class="loader"></div>
         <div style="
         border-radius:8px;

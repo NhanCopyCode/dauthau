@@ -18,8 +18,9 @@
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
         <div class="flex items-center justify-between">
             <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Hôm nay</span>
-            <div class="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div :class="statusBgClass(rawLastStatus) + ' w-8 h-8 rounded-lg flex items-center justify-center'">
+                <svg class="w-4 h-4" :class="statusIconClass(rawLastStatus)" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
@@ -58,7 +59,8 @@
                 </svg>
             </div>
         </div>
-        <p class="mt-3 text-lg font-semibold text-emerald-500"><span x-text="lastStatus">--</span></p>
+        <p class="mt-3 text-lg font-semibold" :class="statusTextClass(rawLastStatus)"><span
+                x-text="lastStatus">--</span></p>
         <p class="mt-1 text-xs text-zinc-500"><span x-text="lastTime">--</span></p>
     </div>
 
@@ -91,6 +93,9 @@
             avgDuration: '--',
 
             lastStatus: '--',
+
+            // raw status string from the API (e.g. 'completed_with_errors')
+            rawLastStatus: '--',
 
             lastTime: '--',
 
@@ -137,8 +142,12 @@
                     this.totalItems = data.total_items ?? 0;
                     this.todayItems = data.today_items ?? 0;
                     this.avgDuration = data.avg_duration ?? '--';
-                    this.lastStatus = (data.last_status ?? '--').charAt(0).toUpperCase() + (data
-                        .last_status ?? '').slice(1);
+                    this.rawLastStatus = data.last_status ?? '--';
+                    this.lastStatus = (data.last_status ?? '--')
+                        .replace(/_/g, ' ')
+                        .split(' ')
+                        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+                        .join(' ');
                     this.lastTime = data.last_time ?? '--';
                     this.runningJobs = data.running_jobs ?? 0;
                     this.currentProgress = data.current_progress ?? '--';
@@ -146,7 +155,52 @@
                 } catch (error) {
                     console.error('Failed to fetch stats', error);
                 }
-            }
+            },
+
+            statusBgClass(status) {
+                switch (status) {
+                    case 'completed':
+                        return 'bg-emerald-500/10';
+                    case 'completed_with_errors':
+                        return 'bg-amber-500/10';
+                    case 'failed':
+                        return 'bg-red-500/10';
+                    case 'running':
+                        return 'bg-blue-500/10';
+                    default:
+                        return 'bg-zinc-900';
+                }
+            },
+
+            statusIconClass(status) {
+                switch (status) {
+                    case 'completed':
+                        return 'text-emerald-500';
+                    case 'completed_with_errors':
+                        return 'text-amber-500';
+                    case 'failed':
+                        return 'text-red-500';
+                    case 'running':
+                        return 'text-blue-400';
+                    default:
+                        return 'text-zinc-500';
+                }
+            },
+
+            statusTextClass(status) {
+                switch (status) {
+                    case 'completed':
+                        return 'text-emerald-500';
+                    case 'completed_with_errors':
+                        return 'text-amber-500';
+                    case 'failed':
+                        return 'text-red-500';
+                    case 'running':
+                        return 'text-blue-400';
+                    default:
+                        return 'text-zinc-300';
+                }
+            },
 
         }));
     });

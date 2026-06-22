@@ -85,7 +85,7 @@ class RunCrawlTaskJob implements ShouldQueue
         )->onQueue('crawl');
 
         $tracker->jobDispatched($task->id);
-        // $tracker->markProducerDone($task->id);
+        $tracker->markProducerDone($task->id);
     }
 
     // private function runRange(

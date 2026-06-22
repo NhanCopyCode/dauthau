@@ -88,11 +88,6 @@ class CrawlTenderSubResourceJob implements ShouldQueue
         \Throwable $e
     ): void {
 
-        // count as processed and failed on permanent failure (atomic)
-        $this->incrementProcessedAndFailedIfNeeded();
-
-        app(CrawlTracker::class)->jobFinished($this->taskId);
-
         Log::critical(
             "SubResource {$this->type} permanently failed",
             [
@@ -102,6 +97,25 @@ class CrawlTenderSubResourceJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]
         );
+
+        try {
+            // count as processed and failed on permanent failure (atomic)
+            $this->incrementProcessedAndFailedIfNeeded();
+        } catch (\Throwable $ignored) {
+            Log::error('SubResource failed() - incrementProcessedAndFailedIfNeeded failed', [
+                'task_id' => $this->taskId,
+                'error' => $ignored->getMessage(),
+            ]);
+        }
+
+        try {
+            app(CrawlTracker::class)->jobFinished($this->taskId);
+        } catch (\Throwable $ignored) {
+            Log::error('SubResource failed() - jobFinished failed', [
+                'task_id' => $this->taskId,
+                'error' => $ignored->getMessage(),
+            ]);
+        }
     }
 
     private function incrementProcessedItemsIfNeeded(): void
