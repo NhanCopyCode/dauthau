@@ -286,16 +286,16 @@
                                           title="Xem chi tiết">
                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                                                3 3 0 016 0z" />
+                                                                                    3 3 0 016 0z" />
 
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                                                7.523 5 12 5
-                                                                                c4.478 0 8.268 2.943
-                                                                                9.542 7
-                                                                                -1.274 4.057-5.064 7
-                                                                                -9.542 7
-                                                                                -4.477 0-8.268-2.943
-                                                                                -9.542-7z" />
+                                                                                    7.523 5 12 5
+                                                                                    c4.478 0 8.268 2.943
+                                                                                    9.542 7
+                                                                                    -1.274 4.057-5.064 7
+                                                                                    -9.542 7
+                                                                                    -4.477 0-8.268-2.943
+                                                                                    -9.542-7z" />
                                           </svg>
                                       </button>
                                   @else
@@ -304,15 +304,15 @@
                                           title="Đăng nhập để xem chi tiết">
                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0
-                                                                                3 3 0 016 0z" />
+                                                                                    3 3 0 016 0z" />
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943
-                                                                                7.523 5 12 5
-                                                                                c4.478 0 8.268 2.943
-                                                                                9.542 7
-                                                                                -1.274 4.057-5.064 7
-                                                                                -9.542 7
-                                                                                -4.477 0-8.268-2.943
-                                                                                -9.542-7z" />
+                                                                                    7.523 5 12 5
+                                                                                    c4.478 0 8.268 2.943
+                                                                                    9.542 7
+                                                                                    -1.274 4.057-5.064 7
+                                                                                    -9.542 7
+                                                                                    -4.477 0-8.268-2.943
+                                                                                    -9.542-7z" />
                                           </svg>
                                       </a>
                                   @endauth
@@ -754,6 +754,8 @@
 
                   isFetching: false,
                   now: Date.now(),
+                  // server -> client clock offset in ms (clientNow - serverNow)
+                  serverOffset: 0,
 
                   lastHasRunningTask: null,
 
@@ -948,6 +950,18 @@
                               await response.json();
 
                           this.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+
+                          // compute server-client clock offset so we can render running durations
+                          // without being affected by clock skew between servers and browsers
+                          try {
+                              if (data.server_now) {
+                                  this.serverOffset = Date.now() - Date.parse(data.server_now);
+                              } else {
+                                  this.serverOffset = 0;
+                              }
+                          } catch (e) {
+                              this.serverOffset = 0;
+                          }
 
                           if (data.pagination) {
                               this.currentPage = data.pagination.current_page || 1;
@@ -1538,57 +1552,37 @@
                           return '-';
                       }
 
-                      const start =
-                          this.parseDate(
-                              task.started_at
-                          );
+                      // Parse server timestamps
+                      const startServer = this.parseDate(task.started_at);
+                      if (!startServer) return '-';
 
-                      const end =
-                          task.finished_at ?
+                      // If finished_at present, use server-side duration (both timestamps from server)
+                      if (task.finished_at) {
+                          const finishServer = this.parseDate(task.finished_at);
+                          if (!finishServer) return '-';
 
-                          this.parseDate(
-                              task.finished_at
-                          ) :
+                          const seconds = Math.max(0, Math.floor((finishServer - startServer) / 1000));
 
-                          new Date(
-                              this.now
-                          );
-
-                      if (!start || !end) {
-                          return '-';
+                          if (seconds < 60) return `${seconds}s`;
+                          const hours = Math.floor(seconds / 3600);
+                          const mins = Math.floor((seconds % 3600) / 60);
+                          const secs = seconds % 60;
+                          if (hours > 0) return `${hours}h ${mins}m`;
+                          return `${mins}m ${secs}s`;
                       }
 
-                      const seconds =
-                          Math.max(
-                              0,
-                              Math.floor(
-                                  (end - start) /
-                                  1000
-                              )
-                          );
+                      // Running task: convert server start -> client clock using serverOffset
+                      const startClient = new Date(startServer.getTime() + (this.serverOffset || 0));
+                      const endClient = new Date(this.now || Date.now());
+                      if (!startClient || !endClient) return '-';
 
-                      if (seconds < 60) {
-                          return `${seconds}s`;
-                      }
+                      const seconds = Math.max(0, Math.floor((endClient - startClient) / 1000));
 
-                      const hours =
-                          Math.floor(
-                              seconds / 3600
-                          );
-
-                      const mins =
-                          Math.floor(
-                              (seconds %
-                                  3600) / 60
-                          );
-
-                      const secs =
-                          seconds % 60;
-
-                      if (hours > 0) {
-                          return `${hours}h ${mins}m`;
-                      }
-
+                      if (seconds < 60) return `${seconds}s`;
+                      const hours = Math.floor(seconds / 3600);
+                      const mins = Math.floor((seconds % 3600) / 60);
+                      const secs = seconds % 60;
+                      if (hours > 0) return `${hours}h ${mins}m`;
                       return `${mins}m ${secs}s`;
                   },
 

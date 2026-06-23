@@ -203,6 +203,7 @@ class CrawlController extends Controller
 
         return response()->json([
             'tasks' => $items,
+            'server_now' => now()->toIso8601String(),
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
