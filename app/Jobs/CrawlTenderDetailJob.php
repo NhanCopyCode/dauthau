@@ -21,11 +21,16 @@ class CrawlTenderDetailJob implements ShouldQueue
 
     public $tries = 5;
 
-    public $backoff = [10, 30, 60];
+    public $backoff = [
+        30,
+        120,
+        300,
+        900,
+    ];
 
-    // public $tries = 2; // Thay vì 5, chỉ retry 2 lần
+    // public $tries = 1; // Thay vì 5, chỉ retry 2 lần
 
-    // public $backoff = [1, 2];
+    // public $backoff = [1];
 
     protected int $tenderId;
 
