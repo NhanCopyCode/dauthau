@@ -13,9 +13,14 @@ class CrawlTenderSubResourceJob implements ShouldQueue
 {
     use Queueable;
 
-    public $tries = 3;
-    public $timeout = 60;
+    public $tries = 5;
+    public $backoff = [10, 30, 60];
 
+    // public $tries = 1;  // thay vì 5
+
+    // public $backoff = [1];  // thay vì [10, 30, 60]
+
+    public $timeout = 60;
     protected int $tenderId;
     protected string $type;
     protected int $taskId;
@@ -33,6 +38,8 @@ class CrawlTenderSubResourceJob implements ShouldQueue
         $tracker = app(CrawlTracker::class);
 
         try {
+            //      Throw an exception for testing retry and failure handling
+            // throw new \Exception('Test forced failure');
 
             $tender = Tender::find($this->tenderId);
 

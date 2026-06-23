@@ -332,11 +332,11 @@ class FrontendController extends Controller
                 'to_date' => optional($task->to_date)->format('Y-m-d'),
                 'started_at' => optional(
                     $task->started_at
-                )->format('Y-m-d H:i:s'),
+                )->toIso8601String(),
 
                 'finished_at' => optional(
                     $task->finished_at
-                )->format('Y-m-d H:i:s'),
+                )->toIso8601String(),
 
                 'processed_items' =>
                 $task->processed_items ?? 0,

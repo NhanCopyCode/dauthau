@@ -40,8 +40,8 @@ class CrawlTaskDetailController extends Controller
             'display_type' => $displayTypeMap[$task->type] ?? ucfirst($task->type),
             'status' => $task->status,
             'display_status' => $displayStatusMap[$task->status] ?? ucfirst($task->status),
-            'started_at' => optional($startedAt)->format('Y-m-d H:i:s'),
-            'finished_at' => optional($finishedAt)->format('Y-m-d H:i:s'),
+            'started_at' => optional($startedAt)->toIso8601String(),
+            'finished_at' => optional($finishedAt)->toIso8601String(),
             'duration_seconds' => $durationSeconds,
             'crawl_range' => [
                 'from' => optional($task->from_date)->format('Y-m-d'),

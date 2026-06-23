@@ -183,9 +183,9 @@ class CrawlController extends Controller
 
                 'from_date' => optional($task->from_date)->format('Y-m-d'),
                 'to_date' => optional($task->to_date)->format('Y-m-d'),
-                'started_at' => optional($task->started_at)->format('Y-m-d H:i:s'),
+                'started_at' => optional($task->started_at)->toIso8601String(),
 
-                'finished_at' => optional($task->finished_at)->format('Y-m-d H:i:s'),
+                'finished_at' => optional($task->finished_at)->toIso8601String(),
 
                 'processed_items' => $task->processed_items ?? 0,
                 'failed_items' => $task->failed_items ?? 0,

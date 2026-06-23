@@ -27,7 +27,6 @@ class RunCrawlTaskJob implements ShouldQueue
 
         // Reset counters in case this is a retry
         $task->update([
-            'started_at' => now(),
             'finished_at' => null,
             'processed_pages' => 0,
             'processed_items' => 0,
