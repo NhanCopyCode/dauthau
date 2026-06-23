@@ -21,5 +21,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         CrawlTask::observe(CrawlTaskObserver::class);
+
+        if (config('app.env') === 'production') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
     }
 }
