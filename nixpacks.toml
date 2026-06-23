@@ -5,8 +5,8 @@ nixPkgs = [
   "php83Extensions.mbstring",
   "php83Extensions.xml",
   "php83Extensions.curl",
-  "php83Extensions.gd",
-  "composer"
+  "php83Extensions.gd"
 ]
+
 [start]
 cmd = "php artisan serve --host=0.0.0.0 --port=$PORT"
